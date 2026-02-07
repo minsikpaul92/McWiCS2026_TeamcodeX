@@ -39,13 +39,40 @@ export default function SignUpPage() {
     }));
   };
 
-  const handleSignUp = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("Ready to send to backend:", formData);
+  // const handleSignUp = (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   console.log("Ready to send to backend:", formData);
     
-    // Move to onboarding
-    router.push("/onboarding");
-  };
+  //   // Move to onboarding
+  //   router.push("/onboarding");
+  // };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  try {
+    // This 'talks' to the Python server running on your friend's machine
+    const response = await fetch("http://localhost:8000/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData), // Sends your JSON data
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      console.log("Success:", result.message);
+      // Clean up the local storage draft since it's now safe in the cloud
+      localStorage.removeItem("user_signup_draft");
+      router.push("/onboarding");
+    } else {
+      alert(result.detail || "Signup failed");
+    }
+  } catch (error) {
+    console.error("Connection error:", error);
+    alert("Make sure the Python backend is running!");
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12 animate-fade-in-up">
