@@ -1,7 +1,4 @@
 # McWiCS2026_TeamcodeX
-Absolutely! Here's your **README converted into Markdown** (`README.md`) using proper Markdown syntax for GitHub or any markdown-supported platform:
-
-````markdown
 # 🤝 IntroConnect
 ### AI-Powered Friendship Platform for Introverts
 **Hack McWiCS 2026**
