@@ -105,7 +105,7 @@ export default function SignUpPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="firstName">First Name</label>
               <input 
-                id="firstName" type="text" placeholder="Jane" required
+                id="firstName" type="text"  required
                 value={formData.firstName} onChange={handleChange}
                 className="w-full p-2.5 rounded-lg bg-secondary/50 border border-border outline-none focus:ring-2 focus:ring-primary" 
               />
@@ -113,7 +113,7 @@ export default function SignUpPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="lastName">Last Name</label>
               <input 
-                id="lastName" type="text" placeholder="Doe" required
+                id="lastName" type="text"  required
                 value={formData.lastName} onChange={handleChange}
                 className="w-full p-2.5 rounded-lg bg-secondary/50 border border-border outline-none focus:ring-2 focus:ring-primary" 
               />
@@ -143,7 +143,7 @@ export default function SignUpPage() {
                 Age <span className="text-xs text-muted-foreground">(Optional)</span>
               </label>
               <input 
-                id="age" type="number" placeholder="21"
+                id="age" type="number" 
                 value={formData.age} onChange={handleChange}
                 className="w-full p-2.5 rounded-lg bg-secondary/50 border border-border outline-none focus:ring-2 focus:ring-primary" 
               />
@@ -154,7 +154,7 @@ export default function SignUpPage() {
           <div className="space-y-2">
             <label className="text-sm font-medium" htmlFor="email">Email</label>
             <input 
-              id="email" type="email" placeholder="jane@example.com" required
+              id="email" type="email"  required
               value={formData.email} onChange={handleChange}
               className="w-full p-2.5 rounded-lg bg-secondary/50 border border-border outline-none focus:ring-2 focus:ring-primary" 
             />
@@ -164,7 +164,7 @@ export default function SignUpPage() {
           <div className="space-y-2">
             <label className="text-sm font-medium" htmlFor="password">Password</label>
             <input 
-              id="password" type="password" placeholder="••••••••" required
+              id="password" type="password"  required
               value={formData.password} onChange={handleChange}
               className="w-full p-2.5 rounded-lg bg-secondary/50 border border-border outline-none focus:ring-2 focus:ring-primary" 
             />

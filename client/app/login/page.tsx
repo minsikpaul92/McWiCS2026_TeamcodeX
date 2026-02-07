@@ -60,7 +60,6 @@ export default function LoginPage() {
             <input 
               id="email" 
               type="email" 
-              placeholder="jane@example.com" 
               className="w-full p-2.5 rounded-lg bg-secondary/50 border border-border focus:ring-2 focus:ring-primary outline-none transition-all" 
               required 
             />
@@ -78,7 +77,6 @@ export default function LoginPage() {
             <input 
               id="password" 
               type="password" 
-              placeholder="••••••••" 
               className="w-full p-2.5 rounded-lg bg-secondary/50 border border-border focus:ring-2 focus:ring-primary outline-none transition-all" 
               required 
             />
