@@ -11,15 +11,15 @@
 - [x] Verify server status via Health Check API (`GET /`)
 
 #### **Phase 3: AI Analysis Engine**
-- [ ] Create `engine/analyzer.py` (**Google Gemini** integration)
-- [ ] Design multi-source analysis prompt (Chat, Posts, etc.)
-- [ ] Implement JSON enforcement logic for output
+- [x] Create `engine/analyzer.py` (**Google Gemini** integration)
+- [x] Design multi-source analysis prompt (Chat, Posts, etc.)
+- [x] Implement JSON enforcement logic for output
 
 #### **Phase 4: Matching Logic**
-- [ ] Create `engine/matcher.py`
-- [ ] Implement `Must Avoid` hard filter logic
-- [ ] Implement Social Energy scoring & candidate filtering
-- [ ] Implement interest-based weighting & ranking
+- [x] Create `engine/matcher.py`
+- [x] Implement `Must Avoid` hard filter logic
+- [x] Implement Social Energy scoring & candidate filtering
+- [x] Implement interest-based weighting & ranking
 
 #### **Phase 5: API Routes & Registration**
 - [ ] Create `routes/matching.py` (Analysis & Match result endpoints)

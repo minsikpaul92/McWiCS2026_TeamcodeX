@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="IntroConnect API")
 
-# 프론트엔드 연동을 위한 CORS 설정
+# CORS configuration for frontend integration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
