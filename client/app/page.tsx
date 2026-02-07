@@ -14,9 +14,9 @@ export default function Page() {
       <Header />
       <main>
         <HeroSection />
-        <AboutSection />
         <HowItWorksSection />
-        <FeaturesSection />
+        {/* <AboutSection /> */}
+        {/* <FeaturesSection /> */}
         <CTASection />
         <ContactSection />
       </main>

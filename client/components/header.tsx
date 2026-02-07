@@ -1,4 +1,5 @@
 "use client"
+
 import Link from "next/link"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -94,9 +95,9 @@ export function Header() {
           >
             Sign In
           </a>
-          <Button asChild className="rounded-full px-6 font-medium" size="sm">
-  <Link href="/signup">Sign Up</Link>
-</Button>
+          <Button className="rounded-full px-6 font-medium hover:text-green-10000 transition-colors">
+            <Link href="/signup">Sign Up</Link>
+          </Button>
         </div>
 
         {/* Mobile Menu Toggle */}
@@ -149,11 +150,9 @@ export function Header() {
               >
                 Sign In
               </a>
-              <Button className="rounded-full px-6 font-medium" size="sm">
-                <Link href="/signup">
-              <button className="px-6 py-3 bg-primary text-white rounded-lg font-bold">
-                Sign Up
-              </button>
+              <Button asChild className="rounded-full px-6 font-medium" size="sm" >
+                <Link href="/login">
+                  Sign Up
                 </Link>
               </Button>
             </div>
