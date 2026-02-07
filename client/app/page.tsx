@@ -15,10 +15,10 @@ export default function Page() {
       <main>
         <HeroSection />
         <HowItWorksSection />
-        {/* <AboutSection /> */}
         {/* <FeaturesSection /> */}
-        <CTASection />
+        {/* <CTASection /> */}
         <ContactSection />
+        <AboutSection />
       </main>
       <Footer />
     </>
