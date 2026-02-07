@@ -1,9 +1,11 @@
 "use client"
 
+import Link from "next/link" // Added Link import
 import { Button } from "@/components/ui/button"
 import { ArrowRight } from "lucide-react"
 import { useEffect, useRef } from "react"
 
+// ... HalftoneBackground component stays exactly the same ...
 function HalftoneBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -51,7 +53,6 @@ function HalftoneBackground() {
     resize()
     window.addEventListener("resize", resize)
 
-    // Redraw on theme change
     const observer = new MutationObserver(() => {
       resize()
     })
@@ -109,21 +110,21 @@ export function HeroSection() {
             AI-powered matching. No pressure, no judgment — just genuine
             friendships.
           </p>
+          
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row animate-fade-in-up [animation-delay:400ms]">
+            {/* Primary Action Button linked to Signup */}
             <Button
+              asChild
               size="lg"
-              className="group rounded-full px-8 text-base font-medium"
+              className="group rounded-full px-10 text-base font-medium transition-all"
             >
-              Get Started
-              <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              <Link href="/signup">
+                Get Started
+                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Link>
             </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="rounded-full px-8 text-base font-medium bg-transparent"
-            >
-              Sign Up Free
-            </Button>
+            
+            {/* Removed "Sign Up Free" Button to focus on one CTA */}
           </div>
         </div>
       </div>

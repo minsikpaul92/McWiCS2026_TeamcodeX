@@ -26,7 +26,7 @@ export function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         {/* Logo */}
-        <a href="#home" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
             <svg
               width="20"
@@ -68,7 +68,7 @@ export function Header() {
           <span className="font-display text-xl font-bold text-foreground">
             Quietly
           </span>
-        </a>
+        </Link>
 
         {/* Desktop Navigation */}
         <nav
@@ -97,13 +97,17 @@ export function Header() {
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           </button>
-          <a
-            href="#contact"
+          
+          {/* Linked to login page */}
+          <Link
+            href="/login"
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             Sign In
-          </a>
-          <Button className="rounded-full px-6 font-medium hover:text-green-10000 transition-colors">
+          </Link>
+
+          {/* Linked to signup page */}
+          <Button asChild className="rounded-full px-6 font-medium transition-colors">
             <Link href="/signup">Sign Up</Link>
           </Button>
         </div>
@@ -152,14 +156,15 @@ export function Header() {
               </a>
             ))}
             <div className="mt-4 flex items-center gap-3 border-t border-border/50 pt-4">
-              <a
-                href="#contact"
+              <Link
+                href="/login"
+                onClick={() => setMobileOpen(false)}
                 className="text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
                 Sign In
-              </a>
-              <Button asChild className="rounded-full px-6 font-medium" size="sm" >
-                <Link href="/login">
+              </Link>
+              <Button asChild className="rounded-full px-6 font-medium" size="sm">
+                <Link href="/signup" onClick={() => setMobileOpen(false)}>
                   Sign Up
                 </Link>
               </Button>
