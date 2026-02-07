@@ -103,10 +103,8 @@ export function Header() {
           >
             Sign In
           </a>
-          <Button className="rounded-full px-6 font-medium" size="sm">
-            <Link href="/login">
-                Sign Up
-            </Link>
+          <Button className="rounded-full px-6 font-medium hover:text-green-10000 transition-colors">
+            <Link href="/signup">Sign Up</Link>
           </Button>
         </div>
 
