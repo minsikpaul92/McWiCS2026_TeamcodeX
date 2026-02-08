@@ -11,9 +11,9 @@ async def analyze_user_data(existing_profile, new_content):
     """
     Analyzes user conversation content and incrementally updates the profile.
     """
-    # Use the gemini-2.5-flash-lite model, which is active and has verified quota on the current account.
+    # Using gemini-3-flash-preview for maximum quota and performance
     model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash-lite", 
+        model_name="gemini-3-flash-preview", 
         generation_config={
             "response_mime_type": "application/json",
             "temperature": 0.2

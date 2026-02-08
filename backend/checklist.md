@@ -22,10 +22,24 @@
 - [x] Implement interest-based weighting & ranking
 
 #### **Phase 5: API Routes & Registration**
-- [ ] Create `routes/matching.py` (Analysis & Match result endpoints)
-- [ ] Create `routes/auth.py` (Basic user identification)
-- [ ] Register all routers in `main.py`
+- [x] Create `routes/matching.py` (Analysis & Match result endpoints)
+- [x] Create `routes/auth.py` (Basic user identification)
+- [x] Register all routers in `main.py`
 
 #### **Phase 6: Final Verification**
-- [ ] Verify Swagger UI accessibility (`/docs`)
-- [ ] Test AI analysis with sample data inputs
+- [x] Verify Swagger UI accessibility (`/docs`)
+- [x] Test AI analysis with sample data inputs
+
+#### **Phase 7: AI-Driven Dynamic Onboarding**
+- [x] Design System Prompt for the "Interviewer" persona
+- [x] Implement `POST /matching/next-question` endpoint (Dynamic question generation)
+- [x] Implement Session/History management logic (Storing conversation context)
+- [x] Implement Conversation Termination logic (Min 2, Max 7 questions)
+- [x] Integrate Q1-Q3 initial user data into AI context
+- [x] Final Profile Generation based on full conversation history
+
+#### **Phase 8: MongoDB Integration**
+- [ ] Setup MongoDB connection utility (`backend/database.py`)
+- [ ] Create CRUD operations for User Profile (Save/Update)
+- [ ] Create Session management logic (Save/Fetch Chat History)
+- [ ] Connect Database to API Routers (Dependency Injection)
