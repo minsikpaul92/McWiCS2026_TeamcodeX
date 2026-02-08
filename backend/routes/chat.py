@@ -1,12 +1,7 @@
 from fastapi import APIRouter, Body, HTTPException
-from pymongo import MongoClient
+from core.database import conversations_collection
 
 router = APIRouter(prefix="/chat", tags=["chat"])
-
-MONGO_URI = "mongodb+srv://zacdanny2007_db_user:uswF8H7rZFi0pbin@mcwics2026db.llmniuq.mongodb.net/?appName=mcwics2026db"
-client = MongoClient(MONGO_URI)
-db = client["IntroConnect"]
-conversations_collection = db["conversations"]
 
 @router.patch("/save/{db_id}")
 async def save_chat(db_id: str, message: dict = Body(...)):

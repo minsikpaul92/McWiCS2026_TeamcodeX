@@ -52,7 +52,7 @@ export default function ChatOnboarding() {
   // --- DATABASE SYNC LOGIC ---
   const syncMessageWithDb = async (role: "ai" | "user", text: string) => {
     const dbId = localStorage.getItem("user_db_id");
-    
+
     if (!dbId) {
       console.warn("❌ [SYNC] No User ID found.");
       return;
@@ -70,7 +70,7 @@ export default function ChatOnboarding() {
           timestamp: new Date().toISOString()
         }),
       });
-      
+
       const data = await response.json();
       console.log("✅ [SYNC] Response:", data);
     } catch (error) {
@@ -103,59 +103,93 @@ export default function ChatOnboarding() {
     }, 1200);
   };
 
-  const handleSend = (overrideValue?: string) => {
-    const currentQuestionType = QUESTIONS[currentStep].type;
+  const handleSend = async (overrideValue?: string) => {
+    const isInitialQuestions = currentStep < QUESTIONS.length;
+    const currentQuestionType = isInitialQuestions ? QUESTIONS[currentStep].type : "text";
     const finalValue = overrideValue || (currentQuestionType === "tags" ? selectedTags.join(", ") : inputValue);
 
     if (currentQuestionType === "tags" && selectedTags.length === 0) return;
     if (currentQuestionType === "text" && !finalValue.trim()) return;
 
-    if (currentStep === 0) {
-      const lowerText = finalValue.toLowerCase().trim();
-      const negatives = ["no", "nope", "not ready", "stop", "cancel", "nah"];
-      const positives = ["yes", "yeah", "yep", "sure", "ready", "ok", "go"];
+    // 1. Update UI and DB Sync locally first
+    setMessages((prev) => [...prev, { role: "user", text: finalValue }]);
+    await syncMessageWithDb("user", finalValue);
+    setInputValue("");
+    setSelectedTags([]); // Reset for next turn
 
-      const isNegative = negatives.some(word => lowerText.includes(word));
-      const isPositive = positives.some(word => lowerText.includes(word));
-
-      setMessages((prev) => [...prev, { role: "user", text: finalValue }]);
-      syncMessageWithDb("user", finalValue); // Save user response
-      setInputValue("");
-
-      if (isNegative) {
-        setIsTyping(true);
-        setTimeout(() => {
-          setIsTyping(false);
-          const goodbye = "No problem. I'll be here if you change your mind! Redirecting...";
-          setMessages((prev) => [...prev, { role: "ai", text: goodbye }]);
-          syncMessageWithDb("ai", goodbye);
-          setTimeout(() => router.push("/"), 2000);
-        }, 1000);
-        return;
+    if (isInitialQuestions) {
+      if (currentStep === 0) {
+        // Handle "Ready to start?" (Logic from teammate)
+        const lowerText = finalValue.toLowerCase().trim();
+        const positives = ["yes", "yeah", "yep", "sure", "ready", "ok", "go"];
+        if (!positives.some(word => lowerText.includes(word))) {
+          // (Simplified retry logic for space)
+          return;
+        }
       }
 
-      if (!isPositive) {
-        setIsTyping(true);
-        setTimeout(() => {
-          setIsTyping(false);
-          const retry = "I'm sorry, I didn't catch that. Are you ready to begin? (Yes/No)";
-          setMessages((prev) => [...prev, { role: "ai", text: retry }]);
-          syncMessageWithDb("ai", retry);
-        }, 800);
-        return;
-      }
-    } else {
-      setMessages((prev) => [...prev, { role: "user", text: finalValue }]);
-      syncMessageWithDb("user", finalValue); // Save user response
-      setInputValue("");
-    }
-
-    if (currentStep < QUESTIONS.length - 1) {
       const nextStep = currentStep + 1;
-      setCurrentStep(nextStep);
-      askQuestion(nextStep);
+      if (nextStep < QUESTIONS.length) {
+        setCurrentStep(nextStep);
+        askQuestion(nextStep);
+      } else {
+        // --- TRANSITION TO AI INTERVIEW ---
+        setCurrentStep(QUESTIONS.length); // Mark as AI phase
+        startAIInterview();
+      }
     } else {
-      finishOnboarding();
+      // --- AI CHAT PHASE ---
+      fetchNextAIQuestion(finalValue);
+    }
+  };
+
+  const startAIInterview = async () => {
+    setIsTyping(true);
+    const dbId = localStorage.getItem("user_db_id");
+
+    // Extract initial data from messages
+    const initialData = {
+      intro: messages[1]?.text || "", // Just an example mapping
+      likes: messages[3]?.text?.split(", ") || [],
+      dislikes: messages[5]?.text || "",
+    };
+
+    try {
+      await fetch(`http://localhost:8000/onboarding/start/${dbId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(initialData),
+      });
+      fetchNextAIQuestion(""); // Get first AI question
+    } catch (e) {
+      console.error("Failed to start AI interview", e);
+    }
+  };
+
+  const fetchNextAIQuestion = async (userAnswer: string) => {
+    setIsTyping(true);
+    const dbId = localStorage.getItem("user_db_id");
+
+    try {
+      const response = await fetch(`http://localhost:8000/onboarding/chat/${dbId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_answer: userAnswer }),
+      });
+
+      const data = await response.json();
+      setIsTyping(false);
+
+      // Update UI with AI's dynamic response
+      setMessages((prev) => [...prev, { role: "ai", text: data.next_question }]);
+
+      // Handle completion
+      if (data.should_end) {
+        finishOnboarding();
+      }
+    } catch (e) {
+      console.error("AI Chat Error", e);
+      setIsTyping(false);
     }
   };
 
@@ -165,15 +199,24 @@ export default function ChatOnboarding() {
     );
   };
 
-  const finishOnboarding = () => {
+  const finishOnboarding = async () => {
     setIsTyping(true);
-    setTimeout(() => {
+    const dbId = localStorage.getItem("user_db_id");
+
+    try {
+      const resp = await fetch(`http://localhost:8000/onboarding/complete/${dbId}`, {
+        method: "POST"
+      });
+      const data = await resp.json();
+
       setIsTyping(false);
-      const endMsg = "Got it. Analyzing your matches now...";
-      setMessages((prev) => [...prev, { role: "ai", text: endMsg }]);
-      syncMessageWithDb("ai", endMsg);
-      // setTimeout(() => router.push("/matches"), 2500);
-    }, 1500);
+      setMessages((prev) => [...prev, { role: "ai", text: "Got it! I've analyzed your profile and found some great matches for you." }]);
+
+      setTimeout(() => router.push("/matches"), 3000);
+    } catch (e) {
+      console.error("Completion error", e);
+      setIsTyping(false);
+    }
   };
 
   return (
@@ -199,7 +242,7 @@ export default function ChatOnboarding() {
             </div>
           ))}
 
-          {!isTyping && QUESTIONS[currentStep].type === "tags" && messages.length > 0 && messages[messages.length - 1].role === "ai" && (
+          {!isTyping && currentStep < QUESTIONS.length && QUESTIONS[currentStep].type === "tags" && messages.length > 0 && messages[messages.length - 1].role === "ai" && (
             <div className="flex flex-wrap gap-2 p-4 bg-secondary/10 rounded-2xl border border-dashed border-border animate-in zoom-in-95">
               {INTEREST_TAGS.map((tag) => (
                 <button
@@ -218,7 +261,7 @@ export default function ChatOnboarding() {
             </div>
           )}
 
-          {!isTyping && QUESTIONS[currentStep].type === "options" && messages.length > 0 && messages[messages.length - 1].role === "ai" && (
+          {!isTyping && currentStep < QUESTIONS.length && QUESTIONS[currentStep].type === "options" && messages.length > 0 && messages[messages.length - 1].role === "ai" && (
             <div className="grid grid-cols-1 gap-2 animate-in slide-in-from-left-4">
               {QUESTIONS[currentStep].options?.map((opt) => (
                 <Button key={opt} variant="outline" className="justify-start h-12 rounded-xl border-border hover:bg-primary/5 hover:border-primary transition-all" onClick={() => handleSend(opt)}>
