@@ -80,6 +80,14 @@ export default function ChatOnboarding() {
   };
 
   useEffect(() => {
+    // Route Guard
+    const dbId = localStorage.getItem("user_db_id");
+    const session = localStorage.getItem("user_session");
+    if (!dbId || !session) {
+      router.push("/login");
+      return;
+    }
+
     if (!hasInitialized.current) {
       askQuestion(0);
       hasInitialized.current = true;

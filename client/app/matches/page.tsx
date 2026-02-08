@@ -27,8 +27,11 @@ export default function MatchesPage() {
 
   useEffect(() => {
     const dbId = localStorage.getItem("user_db_id");
-    if (!dbId) {
-      setLoading(false);
+    const session = localStorage.getItem("user_session");
+
+    // Route Guard
+    if (!session || !dbId) {
+      router.push("/login");
       return;
     }
 

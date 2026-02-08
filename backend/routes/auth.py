@@ -1,33 +1,29 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
+from core.database import users_collection
+from bson import ObjectId
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-class UserSignup(BaseModel):
-    username: str
-    email: EmailStr
-    password: str
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-@router.post("/signup")
-async def signup(user: UserSignup):
-    """
-    Simple signup placeholder. In a real app, this would save to a database.
-    """
-    return {"message": "User created successfully", "user_id": "user_" + user.username}
-
 @router.post("/login")
 async def login(user: UserLogin):
     """
-    Simple login placeholder.
+    Verify credentials against MongoDB.
     """
-    # Dummy check
-    if user.email == "test@example.com" and user.password == "password":
+    db_user = users_collection.find_one({"email": user.email})
+    
+    if db_user and db_user.get("password") == user.password:
         return {
-            "access_token": "fake-jwt-token",
-            "token_type": "bearer"
+            "status": "success",
+            "user": {
+                "id": str(db_user["_id"]),
+                "firstName": db_user.get("firstName", "Explorer"),
+                "email": db_user.get("email")
+            }
         }
-    raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+    raise HTTPException(status_code=401, detail="Invalid email or password")

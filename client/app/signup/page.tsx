@@ -62,11 +62,20 @@ export default function SignUpPage() {
 
       if (response.ok) {
         console.log("Success:", result.message);
-        // Save the database ID so onboarding can use it for chat history
+
+        // --- AUTO-LOGIN LOGIC ---
+        const userSession = {
+          id: result.db_id,
+          firstName: formData.firstName,
+          email: formData.email
+        };
+
         localStorage.setItem("user_db_id", result.db_id);
         localStorage.setItem("user_first_name", formData.firstName);
-        console.log("✅ Saved user_db_id and first name to localStorage");
-        // Clean up the local storage draft since it's now safe in the cloud
+        localStorage.setItem("user_session", JSON.stringify(userSession));
+
+        console.log("✅ Auto-logged in and saved session to localStorage");
+
         localStorage.removeItem("user_signup_draft");
         router.push("/onboarding");
       } else {

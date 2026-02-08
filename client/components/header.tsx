@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { useTheme } from "next-themes"
 import { Menu, X, Sun, Moon } from "lucide-react"
@@ -16,9 +16,27 @@ const navLinks = [
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { theme, setTheme } = useTheme()
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userName, setUserName] = useState("")
+
+  useEffect(() => {
+    const savedSession = localStorage.getItem("user_session")
+    if (savedSession) {
+      const user = JSON.parse(savedSession)
+      setIsLoggedIn(true)
+      setUserName(user.firstName || "Explorer")
+    }
+  }, [])
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark")
+  }
+
+  const handleSignout = () => {
+    localStorage.removeItem("user_session")
+    localStorage.removeItem("user_db_id")
+    setIsLoggedIn(false)
+    window.location.href = "/" // Refresh to reset all states
   }
 
   return (
@@ -62,16 +80,30 @@ export function Header() {
             <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           </button>
-          
+
           <div className="h-4 w-[1px] bg-border/60 mx-1" /> {/* Vertical Divider */}
 
-          <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            Sign In
-          </Link>
+          {isLoggedIn ? (
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-primary">● Logged in as {userName}</span>
+              <Button asChild variant="outline" size="sm" className="rounded-full px-4 font-medium active:scale-95 transition-all">
+                <Link href="/dashboard">Dashboard</Link>
+              </Button>
+              <Button onClick={handleSignout} variant="ghost" size="sm" className="text-muted-foreground hover:text-red-500 rounded-full px-4">
+                Sign out
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                Sign In
+              </Link>
 
-          <Button asChild className="rounded-full px-6 font-medium shadow-md active:scale-95 transition-all">
-            <Link href="/signup">Sign Up</Link>
-          </Button>
+              <Button asChild className="rounded-full px-6 font-medium shadow-md active:scale-95 transition-all">
+                <Link href="/signup">Sign Up</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Toggle */}
@@ -93,8 +125,22 @@ export function Header() {
               </a>
             ))}
             <div className="mt-4 flex flex-col gap-4">
-              <Link href="/login" className="text-center py-2 font-medium">Sign In</Link>
-              <Button asChild className="rounded-full w-full py-6"><Link href="/signup">Sign Up Free</Link></Button>
+              {isLoggedIn ? (
+                <>
+                  <p className="text-center text-sm font-semibold text-primary py-2 border border-primary/20 bg-primary/5 rounded-lg">
+                    Logged in as {userName}
+                  </p>
+                  <Button asChild className="rounded-full w-full py-6"><Link href="/dashboard">Dashboard</Link></Button>
+                  <Button onClick={handleSignout} variant="ghost" className="text-muted-foreground hover:text-red-500 py-3">
+                    Sign out
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link href="/login" onClick={() => setMobileOpen(false)} className="text-center py-2 font-medium">Sign In</Link>
+                  <Button asChild className="rounded-full w-full py-6" onClick={() => setMobileOpen(false)}><Link href="/signup">Sign Up Free</Link></Button>
+                </>
+              )}
             </div>
           </nav>
         </div>
