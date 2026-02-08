@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
 import { User, MessageCircle, Heart } from "lucide-react"
 
 // Define what a "Match" looks like
@@ -16,6 +17,13 @@ interface Match {
 export default function MatchesPage() {
   const [matches, setMatches] = useState<Match[]>([])
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
+
+  const handleSayHi = (match: Match) => {
+    // Store in localStorage for Home page to pick up
+    localStorage.setItem("current_match_trial", JSON.stringify(match));
+    router.push("/dashboard");
+  };
 
   useEffect(() => {
     const dbId = localStorage.getItem("user_db_id");
@@ -75,7 +83,10 @@ export default function MatchesPage() {
               </div>
 
               <div className="flex gap-3">
-                <Button className="flex-1 gap-2 rounded-full">
+                <Button
+                  onClick={() => handleSayHi(match)}
+                  className="flex-1 gap-2 rounded-full"
+                >
                   <MessageCircle size={16} /> Say Hi
                 </Button>
                 <Button variant="outline" className="rounded-full px-3">
