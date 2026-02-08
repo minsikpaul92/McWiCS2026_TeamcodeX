@@ -52,6 +52,8 @@ export default function HomePage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const [displayNames, setDisplayNames] = useState<Record<string, string>>({});
+  const [showMatchCongrats, setShowMatchCongrats] = useState(false);
+  const [matchesList, setMatchesList] = useState<any[]>([]); // For profile lookup (bio, interests, match_score)
 
   // 1. Auth & Initial Data Load
   useEffect(() => {
@@ -109,7 +111,8 @@ export default function HomePage() {
             time: 'Trial Started',
             color: m.color || 'bg-primary/20 text-primary',
             bio: m.bio,
-            interests: m.interests || []
+            interests: m.interests || [],
+            match_score: m.match_score
           }));
           // Merge new matches, avoid duplicates
           const existingIds = new Set(loadedTempFriends.map((t: any) => t.id));
@@ -132,7 +135,8 @@ export default function HomePage() {
             time: 'Trial Started',
             color: matchData.color || 'bg-primary/20 text-primary',
             bio: matchData.bio,
-            interests: matchData.interests || []
+            interests: matchData.interests || [],
+            match_score: matchData.match_score
           };
           if (!loadedTempFriends.some((t: any) => t.id === formattedMatch.id)) {
             loadedTempFriends = [...loadedTempFriends, formattedMatch];
@@ -170,6 +174,12 @@ export default function HomePage() {
           setConversationPartners(filtered);
         })
         .catch(() => setConversationPartners([]));
+
+      // 1c. Fetch matches list for profile lookup (bio, interests, match_score) in chat sidebar
+      fetch(`http://localhost:8000/matching/list/${userId}`)
+        .then((res) => res.ok ? res.json() : [])
+        .then((data) => setMatchesList(Array.isArray(data) ? data : []))
+        .catch(() => setMatchesList([]));
     }
   }, [router]);
 
@@ -214,6 +224,7 @@ export default function HomePage() {
         const data = JSON.parse(event.data);
         if (data.type === "match_update") {
           fetchDisplayNamesRef.current?.();
+          setShowMatchCongrats(true);
           return;
         }
         if (data.type === "new_message" && data.message) {
@@ -343,6 +354,7 @@ export default function HomePage() {
         body: JSON.stringify({ friend: friend })
       });
       if (response.ok) {
+        const data = await response.json();
         const newInnerCircle = [...innerCircle, friend];
         const newTempFriends = tempFriends.filter(f => f.id !== friend.id);
         setInnerCircle(newInnerCircle);
@@ -356,6 +368,7 @@ export default function HomePage() {
         } else {
           localStorage.removeItem(`temp_trials_${user.id}`);
         }
+        if (data.is_match) setShowMatchCongrats(true);
       }
     } catch (error) {
       console.error("Failed to add friend:", error);
@@ -386,10 +399,52 @@ export default function HomePage() {
   const getDisplayName = (f: any) => displayNames[f?.id] ?? f?.alias ?? f?.name ?? "Anonymous";
   const getInitials = (name: string) => name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "??";
 
+  // Merge selectedFriend with match profile (bio, interests, match_score) for chat sidebar
+  const getChatProfile = (f: any) => {
+    if (!f) return null;
+    const matchData = matchesList.find((m: any) => m.id === f.id);
+    // Use real bio from matches; avoid showing last message as "bio" for conversation partners
+    const bio = matchData?.bio || (f.match_score != null ? f.bio : null) || "";
+    const interests = f.interests?.length ? f.interests : (matchData?.interests || []);
+    const match_score = f.match_score ?? matchData?.match_score;
+    return {
+      ...f,
+      bio,
+      interests,
+      match_score,
+      displayName: getDisplayName(f),
+    };
+  };
+
   if (!user) return <div className="min-h-screen bg-black flex items-center justify-center text-[#D4FF3F]">SYNCING...</div>;
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
+      <Dialog open={showMatchCongrats} onOpenChange={setShowMatchCongrats}>
+        <DialogContent className="bg-zinc-950 border-[#D4FF3F]/30 text-white max-w-md text-center">
+          <div className="flex flex-col items-center gap-6 py-4">
+            <div className="rounded-full bg-[#D4FF3F]/20 p-6">
+              <Sparkles className="h-16 w-16 text-[#D4FF3F]" />
+            </div>
+            <div>
+              <DialogTitle className="text-2xl font-black uppercase italic text-[#D4FF3F] mb-3">
+                It&apos;s a Match!
+              </DialogTitle>
+              <p className="text-sm text-zinc-300 leading-relaxed">
+                Congratulations! You and your new friend have both added each other to your Inner Circle.
+                Your personal info is now revealed to each other — enjoy your connection!
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowMatchCongrats(false)}
+              className="w-full bg-[#D4FF3F] hover:bg-[#D4FF3F]/90 text-black font-black uppercase tracking-widest"
+            >
+              Awesome!
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <nav className="fixed top-0 z-50 w-full border-b border-white/5 bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
           <Link href="/dashboard" onClick={() => setSelectedFriend(null)} className="text-2xl font-black text-[#D4FF3F] tracking-tighter uppercase italic">Quietly</Link>
@@ -552,19 +607,44 @@ export default function HomePage() {
         </main>
 
         <aside className="sticky top-24 hidden w-80 flex-col gap-6 xl:flex">
-          {selectedFriend && (
-            <Card className="p-6 border-[#D4FF3F]/20 bg-[#D4FF3F]/5 backdrop-blur-xl">
-              <div className="flex flex-col items-center text-center mb-6">
-                <Avatar className="h-20 w-20 mb-4"><AvatarFallback className="bg-zinc-800 text-xl font-black">{getInitials(getDisplayName(selectedFriend))}</AvatarFallback></Avatar>
-                <h3 className="font-black text-lg italic uppercase">{getDisplayName(selectedFriend)}</h3>
-              </div>
-              {innerCircle.some(f => f.id === selectedFriend.id) ? (
-                <Button className="w-full bg-red-500 hover:bg-red-600 text-black font-black uppercase text-xs h-12 rounded-xl" onClick={() => handleRemoveFriend(selectedFriend.id)}>Disconnect</Button>
-              ) : (
-                <Button className="w-full bg-[#D4FF3F] hover:bg-[#D4FF3F]/90 text-black font-black uppercase text-xs h-12 rounded-xl" onClick={() => handleAddFriend(selectedFriend)}>Add to Inner Circle</Button>
-              )}
-            </Card>
-          )}
+          {selectedFriend && (() => {
+            const profile = getChatProfile(selectedFriend);
+            if (!profile) return null;
+            return (
+              <Card className="p-6 rounded-3xl border-[#D4FF3F]/20 bg-[#D4FF3F]/5 backdrop-blur-xl">
+                <div className="flex justify-between items-start mb-4">
+                  <Avatar className="h-12 w-12 rounded-full border border-[#D4FF3F]/30">
+                    <AvatarFallback className="bg-zinc-800 text-[#D4FF3F] text-sm font-black">
+                      {getInitials(profile.displayName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {profile.match_score != null && (
+                    <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-green-500/20 text-[#D4FF3F] rounded-full">
+                      {profile.match_score}% Match
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-xl font-bold mb-1 italic tracking-tight">{profile.displayName}</h3>
+                {profile.bio && (
+                  <p className="text-xs text-muted-foreground mb-4 leading-relaxed line-clamp-3">"{profile.bio}"</p>
+                )}
+                {profile.interests?.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {profile.interests.slice(0, 6).map((interest: string) => (
+                      <span key={interest} className="text-[9px] font-bold uppercase tracking-tighter bg-secondary/50 px-2 py-0.5 rounded">
+                        #{interest}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {innerCircle.some(f => f.id === selectedFriend.id) ? (
+                  <Button className="w-full bg-red-500 hover:bg-red-600 text-black font-black uppercase text-xs h-12 rounded-xl" onClick={() => handleRemoveFriend(selectedFriend.id)}>Disconnect</Button>
+                ) : (
+                  <Button className="w-full bg-[#D4FF3F] hover:bg-[#D4FF3F]/90 text-black font-black uppercase text-xs h-12 rounded-xl" onClick={() => handleAddFriend(selectedFriend)}>Add to Inner Circle</Button>
+                )}
+              </Card>
+            );
+          })()}
         </aside>
       </div>
     </div>

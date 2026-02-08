@@ -35,15 +35,17 @@ async def add_friend(db_id: str, friend: dict = Body(..., embed=True)):
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="User not found")
 
+        is_match = False
         friend_id = str(friend.get("id") or friend_to_store.get("id", ""))
         if friend_id:
             other_user = users_collection.find_one({"_id": ObjectId(friend_id)})
             if other_user:
                 their_inner = {str(f.get("id")) for f in other_user.get("inner_circle", []) if f.get("id")}
                 if db_id in their_inner:
+                    is_match = True
                     await ws_manager.send_to_user(friend_id, {"type": "match_update"})
-            
-        return {"status": "success", "message": "Friend added to inner circle", "friend": friend_to_store}
+
+        return {"status": "success", "message": "Friend added to inner circle", "friend": friend_to_store, "is_match": is_match}
     except Exception as e:
         print(f"Add Friend Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

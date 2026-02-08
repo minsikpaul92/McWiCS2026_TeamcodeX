@@ -5,10 +5,14 @@ from core.database import users_collection
 
 app = FastAPI(title="IntroConnect API")
 
-# 1. CORS Configuration
+# 1. CORS Configuration (include 127.0.0.1 and network IP for dev)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://172.21.80.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
