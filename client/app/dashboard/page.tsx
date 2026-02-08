@@ -35,6 +35,7 @@ export default function HomePage() {
   const [conversationPartners, setConversationPartners] = useState<any[]>([]);
   const [displayNames, setDisplayNames] = useState<Record<string, string>>({});
   const [matchesList, setMatchesList] = useState<any[]>([]);
+  const [isDisconnectDialogOpen, setIsDisconnectDialogOpen] = useState(false);
   
   // Search State
   const [searchEmail, setSearchEmail] = useState("");
@@ -180,6 +181,16 @@ export default function HomePage() {
       } else { setSearchError(data.detail); }
     } finally { setIsSearching(false); }
   };
+  const confirmDisconnect = () => {
+  if (!selectedFriend || !user) return;
+
+  const updated = innerCircle.filter(f => f.id !== selectedFriend.id);
+  setInnerCircle(updated);
+  localStorage.setItem(`inner_circle_${user.id}`, JSON.stringify(updated));
+  
+  setSelectedFriend(null);
+  setIsDisconnectDialogOpen(false); // Close the modal
+};
 
   const getDisplayName = (f: any) => displayNames[f?.id] ?? f?.alias ?? f?.name ?? "Anonymous";
   const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "A";
@@ -333,17 +344,45 @@ export default function HomePage() {
                 </div>
 
                 {innerCircle.some(f => f.id === selectedFriend.id) ? (
-                  <Button 
-                    onClick={() => handleDisconnect(selectedFriend.id)}
-                    className="w-full bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white font-black uppercase text-[10px] tracking-widest h-14 rounded-2xl transition-all"
-                  >
-                    <XCircle className="w-4 h-4 mr-2" /> Disconnect
-                  </Button>
-                ) : (
-                  <Button className="w-full bg-[#D4FF3F] text-black font-black uppercase text-[10px] tracking-widest h-14 rounded-2xl cursor-default">
-                    Discovery Profile
-                  </Button>
-                )}
+  <Dialog open={isDisconnectDialogOpen} onOpenChange={setIsDisconnectDialogOpen}>
+    <DialogTrigger asChild>
+      <Button 
+        className="w-full bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white font-black uppercase text-[10px] tracking-widest h-14 rounded-2xl transition-all"
+      >
+        <XCircle className="w-4 h-4 mr-2" /> Disconnect
+      </Button>
+    </DialogTrigger>
+    <DialogContent className="bg-zinc-950 border-red-500/20 text-white max-w-sm">
+      <DialogHeader>
+        <DialogTitle className="text-red-500 font-black uppercase italic tracking-widest flex items-center gap-2">
+          <Trash2 className="h-4 w-4" /> Disconnect friend?
+        </DialogTitle>
+      </DialogHeader>
+      <div className="py-4 text-xs text-zinc-400 font-medium leading-relaxed">
+        Warning: Once disconnected, chat history will be lost. Are you sure you want to remove friend?
+      </div>
+      <div className="flex gap-3">
+        <Button 
+          variant="ghost" 
+          onClick={() => setIsDisconnectDialogOpen(false)}
+          className="flex-1 border border-white/10 font-black uppercase text-[10px]"
+        >
+          Cancel
+        </Button>
+        <Button 
+          onClick={confirmDisconnect}
+          className="flex-1 bg-red-600 hover:bg-red-700 text-white font-black uppercase text-[10px]"
+        >
+          Confirm
+        </Button>
+      </div>
+    </DialogContent>
+  </Dialog>
+) : (
+  <Button className="w-full bg-[#D4FF3F] text-black font-black uppercase text-[10px] tracking-widest h-14 rounded-2xl cursor-default">
+    Discovery Profile
+  </Button>
+)}
               </div>
             </Card>
           ) : (
