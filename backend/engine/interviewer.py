@@ -6,8 +6,8 @@ from dotenv import load_dotenv
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-# Using stable gemini-1.5-flash for reliability
-MODEL_NAME = "gemini-1.5-flash"
+# Note: Using 'gemini-2.0-flash-lite' for a more stable free quota (2.5-flash had 20/day limit)
+MODEL_NAME = "gemini-3-flash-preview"
 
 async def generate_next_question(initial_data, chat_history):
     """
@@ -18,7 +18,7 @@ async def generate_next_question(initial_data, chat_history):
         model_name=MODEL_NAME,
         generation_config={
             "response_mime_type": "application/json",
-            "temperature": 0.7 # Increased temperature for more creativity
+            "temperature": 0.2 # Lower temperature for better consistency
         }
     )
     
