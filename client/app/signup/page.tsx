@@ -47,7 +47,8 @@ export default function SignUpPage() {
     e.preventDefault();
 
     try {
-      const targetUrl = `${BACKEND_URL}/users/signup`;
+      // EMERGENCY HARDCODE: Force the correct URL to be used
+      const targetUrl = "https://mc-wi-cs-2026-teamcode-x.vercel.app/users/signup";
       console.log("Attempting Signup to:", targetUrl);
 
       const response = await fetch(targetUrl, {
