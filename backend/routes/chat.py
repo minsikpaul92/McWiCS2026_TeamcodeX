@@ -14,3 +14,16 @@ async def save_chat(db_id: str, message: dict = Body(...)):
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/history/{db_id}")
+async def get_chat_history(db_id: str):
+    try:
+        session = conversations_collection.find_one({"user_id": db_id})
+        if not session:
+            return {"history": []}
+        
+        # Format for frontend (mostly ensuring things are JSON serializable)
+        history = session.get("history", [])
+        return {"history": history}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

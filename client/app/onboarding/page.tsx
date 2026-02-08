@@ -89,7 +89,41 @@ export default function ChatOnboarding() {
     }
 
     if (!hasInitialized.current) {
-      askQuestion(0);
+      // Check if we are resuming
+      const urlParams = new URLSearchParams(window.location.search);
+      const isResuming = urlParams.get("resume") === "true";
+
+      if (isResuming) {
+        console.log("🔄 [SESSION] Resuming previous onboarding...");
+        fetch(`http://localhost:8000/chat/history/${dbId}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.history && data.history.length > 0) {
+              const formattedMessages = data.history.map((m: any) => ({
+                role: m.role,
+                text: m.content || m.text || ""
+              }));
+              setMessages(formattedMessages);
+
+              // Set the step to AI phase if history is substantial (Turn 1-3 completed)
+              if (formattedMessages.length >= 6) {
+                setCurrentStep(QUESTIONS.length);
+              } else {
+                // Approximate step based on user turns
+                const userTurns = formattedMessages.filter((m: any) => m.role === "user").length;
+                setCurrentStep(userTurns);
+              }
+            } else {
+              askQuestion(0);
+            }
+          })
+          .catch(err => {
+            console.error("Failed to fetch history:", err);
+            askQuestion(0);
+          });
+      } else {
+        askQuestion(0);
+      }
       hasInitialized.current = true;
     }
   }, []);
