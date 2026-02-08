@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { User, MessageCircle, Heart } from "lucide-react"
+import { BACKEND_URL } from "@/lib/api"
 
 // Define what a "Match" looks like
 interface Match {
@@ -61,7 +62,7 @@ export default function MatchesPage() {
       return;
     }
 
-    fetch(`http://localhost:8000/matching/list/${dbId}`)
+    fetch(`${BACKEND_URL}/matching/list/${dbId}`)
       .then((res) => res.json())
       .then((data) => {
         setMatches(Array.isArray(data) ? data : []);

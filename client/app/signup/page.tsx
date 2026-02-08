@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { BACKEND_URL } from "@/lib/api";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -46,7 +47,7 @@ export default function SignUpPage() {
     e.preventDefault();
 
     try {
-      const response = await fetch("http://localhost:8000/users/signup", {
+      const response = await fetch(`${BACKEND_URL}/users/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

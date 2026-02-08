@@ -19,6 +19,34 @@ async def signup(user_data: dict = Body(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/search-by-email")
+async def search_by_email(payload: dict = Body(...)):
+    """Look up a user by email. Returns id, firstName, lastName for display. Caller can then chat or add to inner circle."""
+    try:
+        email = (payload.get("email") or "").strip().lower()
+        if not email:
+            raise HTTPException(status_code=400, detail="Email is required")
+        requester_id = payload.get("user_id")  # optional, to exclude self
+        found = users_collection.find_one({"email": email})
+        if not found:
+            raise HTTPException(status_code=404, detail="No user found with this email")
+        fid = str(found["_id"])
+        if requester_id and fid == requester_id:
+            raise HTTPException(status_code=400, detail="That's your own email")
+        first = found.get("firstName", "")
+        last = found.get("lastName", "")
+        return {
+            "id": fid,
+            "firstName": first,
+            "lastName": last,
+            "name": f"{first} {last}".strip() or "Anonymous",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/{db_id}/add-friend")
 async def add_friend(db_id: str, friend: dict = Body(..., embed=True)):
     try:

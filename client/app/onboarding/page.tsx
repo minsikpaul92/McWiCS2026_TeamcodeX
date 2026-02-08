@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Bot, Check, Plus, ArrowRight } from "lucide-react";
+import { BACKEND_URL } from "@/lib/api";
 
 const INTEREST_TAGS = [
   "Reading", "Gaming", "Solo Hikes", "Lo-fi Music", "Cooking",
@@ -64,7 +65,7 @@ export default function ChatOnboarding() {
     const dbId = localStorage.getItem("user_db_id");
     if (!dbId) return;
     try {
-      await fetch(`http://localhost:8000/chat/save/${dbId}`, {
+      await fetch(`${BACKEND_URL}/chat/save/${dbId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role, text, timestamp: new Date().toISOString() }),
@@ -166,7 +167,7 @@ export default function ChatOnboarding() {
     };
 
     try {
-      await fetch(`http://localhost:8000/onboarding/start/${dbId}`, {
+      await fetch(`${BACKEND_URL}/onboarding/start/${dbId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(initialData),
@@ -185,7 +186,7 @@ export default function ChatOnboarding() {
     setIsTyping(true);
     const dbId = localStorage.getItem("user_db_id");
     try {
-      const response = await fetch(`http://localhost:8000/onboarding/chat/${dbId}`, {
+      const response = await fetch(`${BACKEND_URL}/onboarding/chat/${dbId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_answer: userAnswer }),
@@ -203,7 +204,7 @@ export default function ChatOnboarding() {
     setIsAnalyzing(true);
     const dbId = localStorage.getItem("user_db_id");
     try {
-      await fetch(`http://localhost:8000/onboarding/complete/${dbId}`, { method: "POST" });
+      await fetch(`${BACKEND_URL}/onboarding/complete/${dbId}`, { method: "POST" });
       setTimeout(() => router.push("/matches"), 3000);
     } catch (e) {
       setIsAnalyzing(false);
