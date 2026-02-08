@@ -139,6 +139,13 @@ export default function HomePage() {
       return;
     }
 
+    // 1. DUPLICATE CHECK: Prevent adding the same friend twice (Fixes Key error)
+    if (innerCircle.some(f => f.id === friend.id)) {
+      console.log("Friend already in inner circle");
+      setSelectedFriend(innerCircle.find(f => f.id === friend.id));
+      return;
+    }
+
     try {
       const response = await fetch(`http://localhost:8000/users/${userId}/add-friend`, {
         method: 'POST',
@@ -166,6 +173,42 @@ export default function HomePage() {
       }
     } catch (e) {
       console.error("Connection error during handleAddFriend:", e);
+    }
+  };
+
+  const handleRemoveFriend = async (friendId: string) => {
+    // 1. Always remove from local temp/trials list if present
+    setTempFriends(prev => prev.filter(f => f.id !== friendId));
+
+    // 2. Clear selection if this was the selected friend
+    if (selectedFriend?.id === friendId) {
+      setSelectedFriend(null);
+    }
+
+    // 3. If it was in the Inner Circle, sync with backend
+    if (innerCircle.some(f => f.id === friendId)) {
+      const userId = user?.id || localStorage.getItem("user_db_id");
+      if (!userId) return;
+
+      try {
+        const response = await fetch(`http://localhost:8000/users/${userId}/remove-friend`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ friend_id: friendId })
+        });
+
+        if (response.ok) {
+          const updatedInnerCircle = innerCircle.filter(f => f.id !== friendId);
+          setInnerCircle(updatedInnerCircle);
+
+          // Update local session
+          const updatedUser = { ...user, inner_circle: updatedInnerCircle };
+          setUser(updatedUser);
+          localStorage.setItem("user_session", JSON.stringify(updatedUser));
+        }
+      } catch (e) {
+        console.error("Failed to remove friend from backend:", e);
+      }
     }
   };
 
@@ -238,7 +281,7 @@ export default function HomePage() {
                       {getInitials(getDisplayName(f))}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-sm font-bold">{getDisplayName(f)}</span>
+                  <span className="text-sm font-bold truncate max-w-[150px]">{getDisplayName(f)}</span>
                 </div>
               ))}
             </div>
@@ -374,6 +417,7 @@ export default function HomePage() {
                 {!innerCircle.some(f => f.id === selectedFriend.id) && (
                   <Button className="w-full bg-[#D4FF3F] hover:bg-[#D4FF3F]/90 text-black font-black uppercase text-xs h-12 rounded-xl" onClick={() => handleAddFriend(selectedFriend)}>Add to Inner Circle</Button>
                 )}
+                <Button className="w-full bg-red-500 hover:bg-red-600 text-black font-black uppercase text-xs h-12 rounded-xl" onClick={() => handleRemoveFriend(selectedFriend.id)}>Disconnect</Button>
               </div>
             </Card>
           ) : (
