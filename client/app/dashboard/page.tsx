@@ -46,24 +46,48 @@ export default function HomePage() {
         setInnerCircle(parsedUser.inner_circle);
       }
 
-      // Check for transferred match from the Matches page
+      // Check for transferred matches from the Matches page
+      const multiTrialRaw = localStorage.getItem("current_matches_trial");
+      if (multiTrialRaw) {
+        try {
+          const matchesData = JSON.parse(multiTrialRaw);
+          const formattedMatches = matchesData.map((m: any) => ({
+            id: m.id,
+            alias: m.name,
+            time: 'Trial Started',
+            color: m.color || 'bg-primary/20 text-primary',
+            bio: m.bio,
+            interests: m.interests || []
+          }));
+
+          setTempFriends(formattedMatches);
+          if (formattedMatches.length > 0) {
+            setSelectedFriend(formattedMatches[0]);
+          }
+
+          // Once loaded, clear from storage
+          localStorage.removeItem("current_matches_trial");
+        } catch (e) {
+          console.error("Failed to parse multi-trial matches data", e);
+        }
+      }
+
+      // Legacy fallback (single match)
       const trialMatchRaw = localStorage.getItem("current_match_trial");
       if (trialMatchRaw) {
         try {
           const matchData = JSON.parse(trialMatchRaw);
           const formattedMatch = {
             id: matchData.id,
-            alias: matchData.name, // The anonymous name (e.g., Anonymous 1)
+            alias: matchData.name,
             time: 'Trial Started',
-            color: 'bg-primary/20 text-primary',
+            color: matchData.color || 'bg-primary/20 text-primary',
             bio: matchData.bio,
-            interests: matchData.interests
+            interests: matchData.interests || []
           };
 
-          setTempFriends([formattedMatch]);
+          setTempFriends(prev => [...prev, formattedMatch]);
           setSelectedFriend(formattedMatch);
-
-          // Once loaded, clear from storage
           localStorage.removeItem("current_match_trial");
         } catch (e) {
           console.error("Failed to parse trial match data", e);
