@@ -47,7 +47,10 @@ export default function SignUpPage() {
     e.preventDefault();
 
     try {
-      const response = await fetch(`${BACKEND_URL}/users/signup`, {
+      const targetUrl = `${BACKEND_URL}/users/signup`;
+      console.log("Attempting Signup to:", targetUrl);
+
+      const response = await fetch(targetUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -71,10 +74,9 @@ export default function SignUpPage() {
       }
     } catch (error) {
       console.error("Connection error:", error);
-      alert(`Connection failed.
-1. Make sure Python backend is running on Vercel.
-2. Check if MONGO_URI is set in Vercel Settings.
-(Error: ${error instanceof Error ? error.message : String(error)})`);
+      alert(`Connection failed to: ${BACKEND_URL}
+1. Check Vercel Backend Logs.
+2. Error details: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
