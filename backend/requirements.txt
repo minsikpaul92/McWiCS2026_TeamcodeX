@@ -4,3 +4,5 @@ pydantic
 google-generativeai
 python-dotenv
 pymongo
+bcrypt
+python-multipart
