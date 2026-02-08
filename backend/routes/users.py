@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Body, HTTPException
 from core.database import users_collection
 from bson import ObjectId
+from routes.chat import manager as ws_manager
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -21,33 +22,64 @@ async def signup(user_data: dict = Body(...)):
 @router.post("/{db_id}/add-friend")
 async def add_friend(db_id: str, friend: dict = Body(..., embed=True)):
     try:
-        # 1. Fetch the REAL user details of the friend to REVEAL identity
-        if "id" in friend:
-            friend_doc = users_collection.find_one({"_id": ObjectId(friend["id"])})
-            if friend_doc:
-                real_first = friend_doc.get("firstName", "")
-                real_last = friend_doc.get("lastName", "")
-                full_name = f"{real_first} {real_last}".strip()
-                
-                # Update the friend object with real details
-                friend["alias"] = full_name
-                friend["name"] = full_name
-                friend["firstName"] = real_first
-                friend["lastName"] = real_last
-                
-        # 2. Update the user document by pushing the REVEALED friend to inner_circle
+        # Store as Anonymous until mutual match (both add each other)
+        friend_to_store = {**friend, "alias": "Anonymous", "name": "Anonymous"}
+        if "id" not in friend_to_store:
+            friend_to_store["id"] = friend.get("id")
+
         result = users_collection.update_one(
             {"_id": ObjectId(db_id)},
-            {"$push": {"inner_circle": friend}}
+            {"$push": {"inner_circle": friend_to_store}}
         )
         
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="User not found")
+
+        friend_id = str(friend.get("id") or friend_to_store.get("id", ""))
+        if friend_id:
+            other_user = users_collection.find_one({"_id": ObjectId(friend_id)})
+            if other_user:
+                their_inner = {str(f.get("id")) for f in other_user.get("inner_circle", []) if f.get("id")}
+                if db_id in their_inner:
+                    await ws_manager.send_to_user(friend_id, {"type": "match_update"})
             
-        return {"status": "success", "message": "Friend added and identity revealed", "friend": friend}
+        return {"status": "success", "message": "Friend added to inner circle", "friend": friend_to_store}
     except Exception as e:
         print(f"Add Friend Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{db_id}/resolve-display-names")
+async def resolve_display_names(db_id: str, payload: dict = Body(...)):
+    """Return display names for friend ids. Reveal real name only when both users have added each other (match)."""
+    friend_ids = payload.get("friend_ids", [])
+    if not friend_ids:
+        return {}
+    result = {}
+    current_user = users_collection.find_one({"_id": ObjectId(db_id)})
+    if not current_user:
+        return result
+    my_inner = {f.get("id") for f in current_user.get("inner_circle", []) if f.get("id")}
+    for fid in friend_ids:
+        if not fid:
+            result[fid] = "Anonymous"
+            continue
+        if fid not in my_inner:
+            result[fid] = "Anonymous"
+            continue
+        other_user = users_collection.find_one({"_id": ObjectId(fid)})
+        if not other_user:
+            result[fid] = "Anonymous"
+            continue
+        their_inner = {f.get("id") for f in other_user.get("inner_circle", []) if f.get("id")}
+        if db_id in their_inner:
+            first = other_user.get("firstName", "")
+            last = other_user.get("lastName", "")
+            name = f"{first} {last}".strip() or "Anonymous"
+            result[fid] = name
+        else:
+            result[fid] = "Anonymous"
+    return result
+
 
 @router.post("/{db_id}/remove-friend")
 async def remove_friend(db_id: str, friend_id: str = Body(..., embed=True)):

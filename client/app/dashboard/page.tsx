@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
-  Home, Users, UserPlus, Search, Bot, Bell, LogOut, Send, 
+  Home, Users, UserPlus, Search, Bot, Bell, LogOut, Send,
   ArrowLeft, Sparkles, Zap, Trash2, Mail, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ export default function HomePage() {
   const [selectedFriend, setSelectedFriend] = useState<any>(null);
   const [chatInput, setChatInput] = useState("");
   const [postInput, setPostInput] = useState("");
-const [posts, setPosts] = useState<any[]>([]); 
+  const [posts, setPosts] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]); // Chat history state
   const [innerCircle, setInnerCircle] = useState<any[]>([]);
   const [tempFriends, setTempFriends] = useState<any[]>([]);
@@ -39,6 +39,7 @@ const [posts, setPosts] = useState<any[]>([]);
   const innerCircleRef = useRef<any[]>([]);
   const tempFriendsRef = useRef<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fetchDisplayNamesRef = useRef<() => void>(() => {});
   selectedFriendRef.current = selectedFriend;
   userRef.current = user;
   innerCircleRef.current = innerCircle;
@@ -49,6 +50,8 @@ const [posts, setPosts] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  const [displayNames, setDisplayNames] = useState<Record<string, string>>({});
 
   // 1. Auth & Initial Data Load
   useEffect(() => {
@@ -159,7 +162,7 @@ const [posts, setPosts] = useState<any[]>([]);
           const partners = (data.conversations || []).map((c: any) => ({
             id: c.partnerId,
             alias: "Anonymous",
-            time: "Messages",
+            label: "Messages",
             bio: c.lastMessage || "",
             interests: []
           }));
@@ -170,6 +173,36 @@ const [posts, setPosts] = useState<any[]>([]);
     }
   }, [router]);
 
+  // 1c. Resolve display names (reveal real name only when both added each other = match)
+  const fetchDisplayNames = useCallback(async (extraIds?: string[]) => {
+    const userId = user?.id || localStorage.getItem("user_db_id");
+    if (!userId) return;
+    const ids = new Set<string>(extraIds || []);
+    innerCircle.forEach((f) => f?.id && ids.add(f.id));
+    conversationPartners.forEach((p) => p?.id && ids.add(p.id));
+    tempFriends.forEach((t) => t?.id && ids.add(t.id));
+    if (ids.size === 0) return;
+    try {
+      const res = await fetch(`http://localhost:8000/users/${userId}/resolve-display-names`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ friend_ids: Array.from(ids) }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDisplayNames(data);
+      }
+    } catch (_) { }
+  }, [user?.id, innerCircle, conversationPartners, tempFriends]);
+
+  useEffect(() => {
+    if (user?.id) fetchDisplayNames();
+  }, [user?.id, innerCircle, conversationPartners, tempFriends]);
+
+  useEffect(() => {
+    fetchDisplayNamesRef.current = fetchDisplayNames;
+  }, [fetchDisplayNames]);
+
   // 2. WebSocket for real-time messages
   useEffect(() => {
     if (!user?.id) return;
@@ -179,6 +212,10 @@ const [posts, setPosts] = useState<any[]>([]);
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        if (data.type === "match_update") {
+          fetchDisplayNamesRef.current?.();
+          return;
+        }
         if (data.type === "new_message" && data.message) {
           const msg = data.message;
           const u = userRef.current;
@@ -191,12 +228,12 @@ const [posts, setPosts] = useState<any[]>([]);
             const inInner = innerCircleRef.current.some((f) => f.id === msg.senderId);
             const inTemp = tempFriendsRef.current.some((f) => f.id === msg.senderId);
             if (msg.receiverId === u?.id && !has && !inInner && !inTemp) {
-              return [...prev, { id: msg.senderId, alias: "Anonymous", time: "Messages", bio: msg.content, interests: [] }];
+              return [...prev, { id: msg.senderId, alias: "Anonymous", label: "New message", bio: msg.content, interests: [] }];
             }
             return prev;
           });
         }
-      } catch (_) {}
+      } catch (_) { }
     };
     return () => {
       ws.close();
@@ -249,9 +286,11 @@ const [posts, setPosts] = useState<any[]>([]);
 
       if (response.ok) {
         const savedMsg = await response.json();
-        // Optimistically update the UI
         setMessages((prev) => [...prev, savedMsg]);
         setChatInput(""); // Clear input
+        setConversationPartners((prev) =>
+          prev.map((p) => p.id === selectedFriend.id ? { ...p, label: "Messages" } : p)
+        );
       }
     } catch (error) {
       console.error("Send error:", error);
@@ -308,7 +347,9 @@ const [posts, setPosts] = useState<any[]>([]);
         const newTempFriends = tempFriends.filter(f => f.id !== friend.id);
         setInnerCircle(newInnerCircle);
         setTempFriends(newTempFriends);
+        setConversationPartners((prev) => prev.filter((p) => p.id !== friend.id));
         setSelectedFriend(null);
+        fetchDisplayNames([friend.id]);
         localStorage.setItem(`inner_circle_${user.id}`, JSON.stringify(newInnerCircle));
         if (newTempFriends.length > 0) {
           localStorage.setItem(`temp_trials_${user.id}`, JSON.stringify(newTempFriends));
@@ -342,7 +383,7 @@ const [posts, setPosts] = useState<any[]>([]);
     } catch (e) { console.error(e); }
   };
 
-  const getDisplayName = (f: any) => f?.alias || f?.name || "Kindred Spirit";
+  const getDisplayName = (f: any) => displayNames[f?.id] ?? f?.alias ?? f?.name ?? "Anonymous";
   const getInitials = (name: string) => name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "??";
 
   if (!user) return <div className="min-h-screen bg-black flex items-center justify-center text-[#D4FF3F]">SYNCING...</div>;
@@ -360,7 +401,7 @@ const [posts, setPosts] = useState<any[]>([]);
         <aside className="sticky top-24 hidden h-[calc(100vh-6rem)] w-64 flex-col gap-6 lg:flex">
           <nav className="space-y-2">
             <Button variant="ghost" onClick={() => setSelectedFriend(null)} className={`w-full justify-start gap-3 rounded-xl font-bold uppercase text-xs tracking-widest h-11 ${!selectedFriend ? 'bg-[#D4FF3F] text-black' : 'hover:bg-secondary'}`}><Home className="h-4 w-4" /> Home</Button>
-            
+
             {/* SEARCH BUTTON & DIALOG */}
             <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
               <DialogTrigger asChild>
@@ -373,17 +414,17 @@ const [posts, setPosts] = useState<any[]>([]);
                 <div className="space-y-4 py-4">
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="friend@email.com" 
-                      className="pl-10 bg-white/5 border-white/10 focus:border-[#D4FF3F]" 
+                    <Input
+                      placeholder="friend@email.com"
+                      className="pl-10 bg-white/5 border-white/10 focus:border-[#D4FF3F]"
                       value={searchEmail}
                       onChange={(e) => setSearchEmail(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSearchAndAdd()}
                     />
                   </div>
                   {searchError && <p className="text-red-500 text-[10px] font-bold uppercase">{searchError}</p>}
-                  <Button 
-                    onClick={handleSearchAndAdd} 
+                  <Button
+                    onClick={handleSearchAndAdd}
                     disabled={isSearching}
                     className="w-full bg-[#D4FF3F] text-black font-black uppercase text-xs h-11"
                   >
@@ -423,8 +464,8 @@ const [posts, setPosts] = useState<any[]>([]);
                   >
                     <Avatar className="h-8 w-8"><AvatarFallback className="bg-[#D4FF3F]/20 text-[#D4FF3F] text-[10px] font-black">??</AvatarFallback></Avatar>
                     <div className="flex flex-col">
-                      <span className="text-sm font-bold italic">{p.alias}</span>
-                      <span className="text-[9px] uppercase font-black text-[#D4FF3F]">New message</span>
+                      <span className="text-sm font-bold truncate">{getDisplayName(p)}</span>
+                      <span className="text-[9px] uppercase font-black text-[#D4FF3F]">{p.label || "Messages"}</span>
                     </div>
                   </div>
                 ))}
@@ -467,18 +508,17 @@ const [posts, setPosts] = useState<any[]>([]);
               </div>
               <ScrollArea className="flex-1 p-6">
                 <div className="space-y-4">
-{messages.length === 0 && (
-                     <div className="flex justify-center mb-8">
-                       <span className="text-[10px] uppercase font-black tracking-[0.3em] text-muted-foreground bg-white/5 px-4 py-1 rounded-full">Conversation Started</span>
-                     </div>
+                  {messages.length === 0 && (
+                    <div className="flex justify-center mb-8">
+                      <span className="text-[10px] uppercase font-black tracking-[0.3em] text-muted-foreground bg-white/5 px-4 py-1 rounded-full">Conversation Started</span>
+                    </div>
                   )}
                   {messages.map((msg, idx) => (
                     <div key={idx} className={`flex ${msg.senderId === user.id ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[75%] p-3 rounded-2xl text-sm ${
-                        msg.senderId === user.id 
-                          ? 'bg-[#D4FF3F] text-black rounded-tr-none font-bold' 
+                      <div className={`max-w-[75%] p-3 rounded-2xl text-sm ${msg.senderId === user.id
+                          ? 'bg-[#D4FF3F] text-black rounded-tr-none font-bold'
                           : 'bg-zinc-800 text-white rounded-tl-none border border-white/5'
-                      }`}>
+                        }`}>
                         {msg.content}
                       </div>
                     </div>
@@ -496,9 +536,9 @@ const [posts, setPosts] = useState<any[]>([]);
                     onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                     className="rounded-xl bg-white/5 border-white/10 focus:border-[#D4FF3F]/50"
                   />
-                  <Button 
+                  <Button
                     onClick={handleSendMessage}
-                    size="icon" 
+                    size="icon"
                     className="rounded-xl bg-[#D4FF3F] text-black hover:bg-[#D4FF3F]/90"
                   >
                     <Send className="h-4 w-4" />
