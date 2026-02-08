@@ -34,7 +34,7 @@ export default function SignUpPage() {
     // PREVENT NEGATIVE AGE: 
     // If the field is 'age', ensure the value isn't less than 0
     if (id === "age" && parseInt(value) < 0) {
-      return; 
+      return;
     }
 
     setFormData((prev) => ({
@@ -56,29 +56,25 @@ export default function SignUpPage() {
       const result = await response.json();
 
       if (response.ok) {
-        console.log("Success:", result.message);
-
-        // --- AUTO-LOGIN LOGIC ---
-        const userSession = {
+        // ... (existing success logic)
+        localStorage.setItem("user_db_id", result.db_id);
+        localStorage.setItem("user_first_name", formData.firstName);
+        localStorage.setItem("user_session", JSON.stringify({
           id: result.db_id,
           firstName: formData.firstName,
           email: formData.email
-        };
-
-        localStorage.setItem("user_db_id", result.db_id);
-        localStorage.setItem("user_first_name", formData.firstName);
-        localStorage.setItem("user_session", JSON.stringify(userSession));
-
-        console.log("✅ Auto-logged in and saved session to localStorage");
-
+        }));
         localStorage.removeItem("user_signup_draft");
         router.push("/onboarding");
       } else {
-        alert(result.detail || "Signup failed");
+        alert(`Server Error (${response.status}): ${result.detail || "Signup failed"}`);
       }
     } catch (error) {
       console.error("Connection error:", error);
-      alert("Make sure the Python backend is running!");
+      alert(`Connection failed.
+1. Make sure Python backend is running on Vercel.
+2. Check if MONGO_URI is set in Vercel Settings.
+(Error: ${error instanceof Error ? error.message : String(error)})`);
     }
   };
 
@@ -137,10 +133,10 @@ export default function SignUpPage() {
                 Age <span className="text-xs text-muted-foreground">(Optional)</span>
               </label>
               <input
-                id="age" 
-                type="number" 
+                id="age"
+                type="number"
                 min="0" // HTML5 browser-level prevention
-                value={formData.age} 
+                value={formData.age}
                 onChange={handleChange}
                 className="w-full p-2.5 rounded-lg bg-secondary/50 border border-border outline-none focus:ring-2 focus:ring-primary text-foreground"
               />

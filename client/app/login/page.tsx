@@ -36,25 +36,29 @@ export default function LoginPage() {
       });
 
       console.log("Response received. Status:", response.status);
-      const data = await response.json();
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseErr) {
+        console.error("JSON Parse Error:", parseErr);
+        throw new Error(`Server returned non-JSON response (Status: ${response.status})`);
+      }
+
       console.log("Response data:", data);
 
       if (response.ok) {
-        /* --- SUCCESS: MATCH FOUND IN DATABASE --- */
-        console.log("Match confirmed! Redirecting...");
-
-        // Save user session so the Home page knows who you are
+        /* --- SUCCESS --- */
         localStorage.setItem("user_db_id", data.user.id);
         localStorage.setItem("user_session", JSON.stringify(data.user));
-
-        // TAKE USER TO HOME PAGE
         router.push("/dashboard");
       } else {
-        /* --- FAILURE: WRONG DETAILS --- */
+        /* --- FAILURE --- */
         setError(data.detail || "Invalid email or password");
       }
-    } catch (err) {
-      setError("Server connection failed. Is your FastAPI running?");
+    } catch (err: any) {
+      console.error("Login Fetch Error:", err);
+      setError(`Connection failed: ${err.message || "Is your backend running?"}`);
     } finally {
       setIsLoading(false);
     }
