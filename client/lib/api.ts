@@ -31,9 +31,9 @@ const getBackendUrl = (): string => {
     // Example: return "http://192.168.1.100:8000";
 
     // Default to Vercel production for single-device development
-    return "https://mc-wi-cs-2026-teamcode-9kltmmx0v-minsikpaul92s-projects.vercel.app";
+    return "http://192.168.1.100:8000";
   }
-  return "https://mc-wi-cs-2026-teamcode-9kltmmx0v-minsikpaul92s-projects.vercel.app";
+  return "http://192.168.1.100:8000";
 };
 
 export const BACKEND_URL = getBackendUrl();
