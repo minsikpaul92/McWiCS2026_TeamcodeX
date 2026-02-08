@@ -3,7 +3,7 @@
 import Link from "next/link" // Added Link import
 import { Button } from "@/components/ui/button"
 import { ArrowRight } from "lucide-react"
-import { useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef } from "react"
 
 // ... HalftoneBackground component stays exactly the same ...
 function HalftoneBackground() {
@@ -77,6 +77,15 @@ function HalftoneBackground() {
 }
 
 export function HeroSection() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+
+  useEffect(() => {
+    const savedSession = localStorage.getItem("user_session")
+    if (savedSession) {
+      setIsLoggedIn(true)
+    }
+  }, [])
+
   return (
     <section
       id="home"
@@ -110,21 +119,19 @@ export function HeroSection() {
             AI-powered matching. No pressure, no judgment — just genuine
             friendships.
           </p>
-          
+
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row animate-fade-in-up [animation-delay:400ms]">
-            {/* Primary Action Button linked to Signup */}
+            {/* Primary Action Button linked to Signup or Dashboard */}
             <Button
               asChild
               size="lg"
               className="group rounded-full px-10 text-base font-medium transition-all"
             >
-              <Link href="/signup">
-                Get Started
+              <Link href={isLoggedIn ? "/dashboard" : "/signup"}>
+                {isLoggedIn ? "Go to Dashboard" : "Get Started"}
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
             </Button>
-            
-            {/* Removed "Sign Up Free" Button to focus on one CTA */}
           </div>
         </div>
       </div>
