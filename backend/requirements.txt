@@ -6,3 +6,4 @@ python-dotenv
 pymongo
 bcrypt
 python-multipart
+email-validator
