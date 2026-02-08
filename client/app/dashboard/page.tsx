@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   Home, Users, UserPlus, Search, Bot, Bell, LogOut, Send, ArrowLeft, Sparkles
 } from "lucide-react";
@@ -18,12 +18,24 @@ export default function HomePage() {
   const [selectedFriend, setSelectedFriend] = useState<any>(null);
   const [chatInput, setChatInput] = useState("");
   const [postInput, setPostInput] = useState("");
-  const [posts, setPosts] = useState<any[]>([]); // Empty state for real data
+  const [posts, setPosts] = useState<any[]>([]); 
+  const [messages, setMessages] = useState<any[]>([]); // Chat history state
   const [innerCircle, setInnerCircle] = useState<any[]>([]);
   const [tempFriends, setTempFriends] = useState<any[]>([]);
+  const [conversationPartners, setConversationPartners] = useState<any[]>([]);
+  const wsRef = useRef<WebSocket | null>(null);
+  const selectedFriendRef = useRef<any>(null);
+  const userRef = useRef<any>(null);
+  const innerCircleRef = useRef<any[]>([]);
+  const tempFriendsRef = useRef<any[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  selectedFriendRef.current = selectedFriend;
+  userRef.current = user;
+  innerCircleRef.current = innerCircle;
+  tempFriendsRef.current = tempFriends;
 
+  // 1. Auth & Initial Data Load
   useEffect(() => {
-    // 1. Auth check (Route Guard)
     const savedUserSession = localStorage.getItem("user_session");
     if (!savedUserSession) {
       router.push("/login");
@@ -41,14 +53,34 @@ export default function HomePage() {
     const savedUser = localStorage.getItem("user_session");
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
+      const userId = parsedUser.id || dbId;
       setUser(parsedUser);
-      
-      // Load actual friends from user data
-      if (parsedUser.inner_circle) {
+
+      // Load persisted inner circle (who we already added) - survives refresh
+      const persistedInner = localStorage.getItem(`inner_circle_${userId}`);
+      if (persistedInner) {
+        try {
+          setInnerCircle(JSON.parse(persistedInner));
+        } catch (e) {
+          console.error("Failed to parse persisted inner circle", e);
+        }
+      } else if (parsedUser.inner_circle) {
         setInnerCircle(parsedUser.inner_circle);
       }
 
-      // Check for transferred matches from the Matches page
+      // Load persisted temp trials (active trials) - survives refresh
+      const persistedTrials = localStorage.getItem(`temp_trials_${userId}`);
+      let loadedTempFriends: any[] = [];
+
+      if (persistedTrials) {
+        try {
+          loadedTempFriends = JSON.parse(persistedTrials);
+        } catch (e) {
+          console.error("Failed to parse persisted trials", e);
+        }
+      }
+
+      // Check for NEW transferred matches from the Matches page (merge with persisted)
       const multiTrialRaw = localStorage.getItem("current_matches_trial");
       if (multiTrialRaw) {
         try {
@@ -61,13 +93,10 @@ export default function HomePage() {
             bio: m.bio,
             interests: m.interests || []
           }));
-
-          setTempFriends(formattedMatches);
-          if (formattedMatches.length > 0) {
-            setSelectedFriend(formattedMatches[0]);
-          }
-
-          // Once loaded, clear from storage
+          // Merge new matches, avoid duplicates
+          const existingIds = new Set(loadedTempFriends.map((t: any) => t.id));
+          const newOnes = formattedMatches.filter((m: any) => !existingIds.has(m.id));
+          loadedTempFriends = [...loadedTempFriends, ...newOnes];
           localStorage.removeItem("current_matches_trial");
         } catch (e) {
           console.error("Failed to parse multi-trial matches data", e);
@@ -87,16 +116,132 @@ export default function HomePage() {
             bio: matchData.bio,
             interests: matchData.interests || []
           };
-
-          setTempFriends(prev => [...prev, formattedMatch]);
-          setSelectedFriend(formattedMatch);
+          if (!loadedTempFriends.some((t: any) => t.id === formattedMatch.id)) {
+            loadedTempFriends = [...loadedTempFriends, formattedMatch];
+          }
           localStorage.removeItem("current_match_trial");
         } catch (e) {
           console.error("Failed to parse trial match data", e);
         }
       }
+
+      setTempFriends(loadedTempFriends);
+      if (loadedTempFriends.length > 0) {
+        setSelectedFriend(loadedTempFriends[0]);
+      }
+
+      // Persist temp trials for next load
+      if (loadedTempFriends.length > 0) {
+        localStorage.setItem(`temp_trials_${userId}`, JSON.stringify(loadedTempFriends));
+      }
+
+      // 1b. Fetch conversation partners (people who have messaged us or we've messaged)
+      const innerIds = new Set((persistedInner ? JSON.parse(persistedInner) : parsedUser.inner_circle || []).map((f: any) => f.id));
+      const tempIds = new Set(loadedTempFriends.map((t: any) => t.id));
+      fetch(`http://localhost:8000/chat/conversations/${userId}`)
+        .then((res) => res.ok ? res.json() : { conversations: [] })
+        .then((data) => {
+          const partners = (data.conversations || []).map((c: any) => ({
+            id: c.partnerId,
+            alias: "Anonymous",
+            time: "Messages",
+            bio: c.lastMessage || "",
+            interests: []
+          }));
+          const filtered = partners.filter((p: any) => !innerIds.has(p.id) && !tempIds.has(p.id));
+          setConversationPartners(filtered);
+        })
+        .catch(() => setConversationPartners([]));
     }
   }, [router]);
+
+  // 2. WebSocket for real-time messages
+  useEffect(() => {
+    if (!user?.id) return;
+    const wsUrl = `${typeof window !== "undefined" && window.location.protocol === "https:" ? "wss" : "ws"}://localhost:8000/chat/ws/${user.id}`;
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "new_message" && data.message) {
+          const msg = data.message;
+          const u = userRef.current;
+          const sf = selectedFriendRef.current;
+          if (msg.receiverId === u?.id && msg.senderId === sf?.id) {
+            setMessages((prev) => [...prev, msg]);
+          }
+          setConversationPartners((prev) => {
+            const has = prev.some((p) => p.id === msg.senderId);
+            const inInner = innerCircleRef.current.some((f) => f.id === msg.senderId);
+            const inTemp = tempFriendsRef.current.some((f) => f.id === msg.senderId);
+            if (msg.receiverId === u?.id && !has && !inInner && !inTemp) {
+              return [...prev, { id: msg.senderId, alias: "Anonymous", time: "Messages", bio: msg.content, interests: [] }];
+            }
+            return prev;
+          });
+        }
+      } catch (_) {}
+    };
+    return () => {
+      ws.close();
+      wsRef.current = null;
+    };
+  }, [user?.id]);
+
+  // 3. Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // 4. Fetch Chat History when a friend is selected
+  useEffect(() => {
+    if (selectedFriend && user) {
+      const fetchMessages = async () => {
+        try {
+          // Adjust URL if your backend port differs
+          const response = await fetch(`http://localhost:8000/chat/${user.id}/${selectedFriend.id}`);
+          if (response.ok) {
+            const data = await response.json();
+            setMessages(data);
+          }
+        } catch (error) {
+          console.error("Failed to fetch messages:", error);
+        }
+      };
+      fetchMessages();
+    } else {
+      setMessages([]); // Clear messages when returning to feed
+    }
+  }, [selectedFriend, user]);
+
+  // 5. Handle Sending Messages
+  const handleSendMessage = async () => {
+    if (!chatInput.trim() || !selectedFriend || !user) return;
+
+    const messageData = {
+      senderId: user.id,
+      receiverId: selectedFriend.id,
+      content: chatInput.trim(),
+    };
+
+    try {
+      const response = await fetch(`http://localhost:8000/chat/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(messageData)
+      });
+
+      if (response.ok) {
+        const savedMsg = await response.json();
+        // Optimistically update the UI
+        setMessages((prev) => [...prev, savedMsg]);
+        setChatInput(""); // Clear input
+      }
+    } catch (error) {
+      console.error("Send error:", error);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("user_session");
@@ -127,9 +272,21 @@ export default function HomePage() {
       });
 
       if (response.ok) {
-        setInnerCircle((prev) => [...prev, friend]);
-        setTempFriends((prev) => prev.filter(f => f.id !== friend.id));
+        const newInnerCircle = [...innerCircle, friend];
+        const newTempFriends = tempFriends.filter(f => f.id !== friend.id);
+
+        setInnerCircle(newInnerCircle);
+        setTempFriends(newTempFriends);
         setSelectedFriend(null);
+
+        // Persist inner circle (who we already added) - survives refresh
+        localStorage.setItem(`inner_circle_${user.id}`, JSON.stringify(newInnerCircle));
+        // Persist remaining trials
+        if (newTempFriends.length > 0) {
+          localStorage.setItem(`temp_trials_${user.id}`, JSON.stringify(newTempFriends));
+        } else {
+          localStorage.removeItem(`temp_trials_${user.id}`);
+        }
       }
     } catch (error) {
       console.error("Failed to add friend:", error);
@@ -202,6 +359,27 @@ export default function HomePage() {
             </div>
           </section>
 
+          {conversationPartners.length > 0 && (
+            <section>
+              <h3 className="mb-3 px-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#D4FF3F]">Messages</h3>
+              <div className="space-y-1">
+                {conversationPartners.map((p) => (
+                  <div
+                    key={p.id}
+                    onClick={() => setSelectedFriend(p)}
+                    className={`flex items-center gap-3 rounded-xl p-2 cursor-pointer border border-[#D4FF3F]/20 ${selectedFriend?.id === p.id ? 'bg-[#D4FF3F]/10' : 'hover:bg-[#D4FF3F]/5'}`}
+                  >
+                    <Avatar className="h-8 w-8"><AvatarFallback className="bg-[#D4FF3F]/20 text-[#D4FF3F] text-[10px] font-black">??</AvatarFallback></Avatar>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold italic">{p.alias}</span>
+                      <span className="text-[9px] uppercase font-black text-[#D4FF3F]">New message</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {tempFriends.length > 0 && (
             <section className="animate-pulse">
               <h3 className="mb-3 px-2 text-[10px] font-black uppercase tracking-[0.2em] text-orange-500">Active Trials</h3>
@@ -245,9 +423,24 @@ export default function HomePage() {
 
               <ScrollArea className="flex-1 p-6">
                 <div className="space-y-4">
-                  <div className="flex justify-center mb-8">
-                    <span className="text-[10px] uppercase font-black tracking-[0.3em] text-muted-foreground bg-white/5 px-4 py-1 rounded-full">Conversation Started</span>
-                  </div>
+                  {messages.length === 0 && (
+                     <div className="flex justify-center mb-8">
+                       <span className="text-[10px] uppercase font-black tracking-[0.3em] text-muted-foreground bg-white/5 px-4 py-1 rounded-full">Conversation Started</span>
+                     </div>
+                  )}
+                  {/* Map through messages and display bubbles */}
+                  {messages.map((msg, idx) => (
+                    <div key={idx} className={`flex ${msg.senderId === user.id ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[75%] p-3 rounded-2xl text-sm ${
+                        msg.senderId === user.id 
+                          ? 'bg-[#D4FF3F] text-black rounded-tr-none font-bold' 
+                          : 'bg-zinc-800 text-white rounded-tl-none border border-white/5'
+                      }`}>
+                        {msg.content}
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
                 </div>
               </ScrollArea>
 
@@ -257,9 +450,14 @@ export default function HomePage() {
                     placeholder="Send message..."
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                     className="rounded-xl bg-white/5 border-white/10 focus:border-[#D4FF3F]/50"
                   />
-                  <Button size="icon" className="rounded-xl bg-[#D4FF3F] text-black hover:bg-[#D4FF3F]/90">
+                  <Button 
+                    onClick={handleSendMessage}
+                    size="icon" 
+                    className="rounded-xl bg-[#D4FF3F] text-black hover:bg-[#D4FF3F]/90"
+                  >
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>

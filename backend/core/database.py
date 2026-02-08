@@ -16,6 +16,7 @@ db = client["IntroConnect"]
 # Standardized collections across the project
 users_collection = db["users"]
 conversations_collection = db["conversations"]
+messages_collection = db["messages"]
 
 def get_db():
     return db
