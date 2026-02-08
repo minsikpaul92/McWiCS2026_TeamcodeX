@@ -44,8 +44,14 @@ export default function HomePage() {
     }
 
     const dbId = localStorage.getItem("user_db_id");
-    if (dbId) {
-      const parsedUser = JSON.parse(savedUserSession);
+    if (dbId || savedUserSession) {
+      const parsedUser = JSON.parse(savedUserSession || "{}");
+
+      // Ensure the id is present in the user state even if missing from session object
+      if (!parsedUser.id && dbId) {
+        parsedUser.id = dbId;
+      }
+
       setUser(parsedUser);
 
       // Load actual friends from user data
@@ -58,7 +64,7 @@ export default function HomePage() {
         try {
           const matchesData = JSON.parse(multiTrialRaw);
           const formattedMatches = matchesData.map((m: any) => ({
-            id: m.id,
+            id: m.id || m._id, // Support both formats
             alias: m.name,
             bio: m.bio,
             interests: m.interests || []
@@ -79,11 +85,11 @@ export default function HomePage() {
   };
 
   const handlePostSubmit = () => {
-    if (!postInput.trim()) return;
+    if (!postInput.trim() || !user) return;
     const newPost = {
       id: Date.now().toString(),
-      author: user.firstName,
-      initials: user.firstName?.[0] || "U",
+      author: user.firstName || "Explorer",
+      initials: (user.firstName || "E")[0],
       time: 'Just now',
       content: postInput
     };
@@ -126,10 +132,15 @@ export default function HomePage() {
   };
 
   const handleAddFriend = async (friend: any) => {
-    if (!user?.id) return;
+    // Robust check for user ID
+    const userId = user?.id || localStorage.getItem("user_db_id");
+    if (!userId) {
+      console.error("Cannot add friend: User ID not found");
+      return;
+    }
 
     try {
-      const response = await fetch(`http://localhost:8000/users/${user.id}/add-friend`, {
+      const response = await fetch(`http://localhost:8000/users/${userId}/add-friend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ friend })
@@ -149,8 +160,13 @@ export default function HomePage() {
         const updatedUser = { ...user, inner_circle: updatedInnerCircle };
         setUser(updatedUser);
         localStorage.setItem("user_session", JSON.stringify(updatedUser));
+      } else {
+        const errorData = await response.json();
+        console.error("Failed to add friend in backend:", errorData);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error("Connection error during handleAddFriend:", e);
+    }
   };
 
   const getDisplayName = (f: any) => {
@@ -276,8 +292,8 @@ export default function HomePage() {
                   {(chatHistories[selectedFriend.id] || []).map((msg) => (
                     <div key={msg.id} className={`flex ${msg.sender === "me" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-1 duration-300`}>
                       <div className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm ${msg.sender === "me"
-                          ? "bg-[#D4FF3F] text-black font-semibold rounded-tr-none shadow-[0_5px_15px_rgba(212,255,63,0.15)]"
-                          : "bg-zinc-800 text-white border border-white/10 rounded-tl-none"
+                        ? "bg-[#D4FF3F] text-black font-semibold rounded-tr-none shadow-[0_5px_15px_rgba(212,255,63,0.15)]"
+                        : "bg-zinc-800 text-white border border-white/10 rounded-tl-none"
                         }`}>
                         <p className="leading-relaxed">{msg.text}</p>
                         <p className={`text-[8px] mt-2 font-black uppercase opacity-40 ${msg.sender === "me" ? "text-black" : "text-white"}`}>{msg.timestamp}</p>
