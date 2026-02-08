@@ -48,7 +48,33 @@ export default function HomePage() {
         setInnerCircle(parsedUser.inner_circle);
       }
 
-      // Check if we just came from a match trial
+      // Check for transferred matches from the Matches page
+      const multiTrialRaw = localStorage.getItem("current_matches_trial");
+      if (multiTrialRaw) {
+        try {
+          const matchesData = JSON.parse(multiTrialRaw);
+          const formattedMatches = matchesData.map((m: any) => ({
+            id: m.id,
+            alias: m.name,
+            time: 'Trial Started',
+            color: m.color || 'bg-primary/20 text-primary',
+            bio: m.bio,
+            interests: m.interests || []
+          }));
+
+          setTempFriends(formattedMatches);
+          if (formattedMatches.length > 0) {
+            setSelectedFriend(formattedMatches[0]);
+          }
+
+          // Once loaded, clear from storage
+          localStorage.removeItem("current_matches_trial");
+        } catch (e) {
+          console.error("Failed to parse multi-trial matches data", e);
+        }
+      }
+
+      // Legacy fallback (single match)
       const trialMatchRaw = localStorage.getItem("current_match_trial");
       if (trialMatchRaw) {
         try {
@@ -61,7 +87,8 @@ export default function HomePage() {
             bio: matchData.bio,
             interests: matchData.interests || []
           };
-          setTempFriends([formattedMatch]);
+
+          setTempFriends(prev => [...prev, formattedMatch]);
           setSelectedFriend(formattedMatch);
           localStorage.removeItem("current_match_trial");
         } catch (e) {
