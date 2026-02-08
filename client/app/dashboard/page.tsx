@@ -25,6 +25,8 @@ export default function HomePage() {
   const [posts, setPosts] = useState<any[]>([]);
   const [innerCircle, setInnerCircle] = useState<any[]>([]);
   const [tempFriends, setTempFriends] = useState<any[]>([]);
+
+  // Chat History State: { "friendId": [messages] }
   const [chatHistories, setChatHistories] = useState<{ [key: string]: any[] }>({});
 
   // --- AUTO SCROLL ---
@@ -43,8 +45,14 @@ export default function HomePage() {
     }
 
     const dbId = localStorage.getItem("user_db_id");
-    if (dbId) {
-      const parsedUser = JSON.parse(savedUserSession);
+    if (dbId || savedUserSession) {
+      const parsedUser = JSON.parse(savedUserSession || "{}");
+
+      // Ensure the id is present in the user state even if missing from session object
+      if (!parsedUser.id && dbId) {
+        parsedUser.id = dbId;
+      }
+
       setUser(parsedUser);
       if (parsedUser.inner_circle) setInnerCircle(parsedUser.inner_circle);
 
@@ -53,7 +61,7 @@ export default function HomePage() {
         try {
           const matchesData = JSON.parse(multiTrialRaw);
           const formattedMatches = matchesData.map((m: any) => ({
-            id: m.id,
+            id: m.id || m._id, // Support both formats
             alias: m.name,
             bio: m.bio,
             interests: m.interests || []
@@ -74,11 +82,11 @@ export default function HomePage() {
   };
 
   const handlePostSubmit = () => {
-    if (!postInput.trim()) return;
+    if (!postInput.trim() || !user) return;
     const newPost = {
       id: Date.now().toString(),
-      author: user.firstName,
-      initials: user.firstName?.[0] || "U",
+      author: user.firstName || "Explorer",
+      initials: (user.firstName || "E")[0],
       time: 'Just now',
       content: postInput
     };
@@ -119,17 +127,41 @@ export default function HomePage() {
   };
 
   const handleAddFriend = async (friend: any) => {
+    // Robust check for user ID
+    const userId = user?.id || localStorage.getItem("user_db_id");
+    if (!userId) {
+      console.error("Cannot add friend: User ID not found");
+      return;
+    }
+
     try {
-      const response = await fetch(`http://localhost:8000/users/${user.id}/add-friend`, {
+      const response = await fetch(`http://localhost:8000/users/${userId}/add-friend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ friend })
       });
       if (response.ok) {
-        setInnerCircle(prev => [...prev, friend]);
-        setTempFriends(prev => prev.filter(f => f.id !== friend.id));
+        const data = await response.json();
+
+        // Use the REVEALED friend object from backend if available
+        const revealedFriend = data.friend || friend;
+
+        const updatedInnerCircle = [...innerCircle, revealedFriend];
+        setInnerCircle(updatedInnerCircle);
+        setTempFriends((prev) => prev.filter(f => f.id !== friend.id));
+        setSelectedFriend(revealedFriend);
+
+        // Update local session
+        const updatedUser = { ...user, inner_circle: updatedInnerCircle };
+        setUser(updatedUser);
+        localStorage.setItem("user_session", JSON.stringify(updatedUser));
+      } else {
+        const errorData = await response.json();
+        console.error("Failed to add friend in backend:", errorData);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error("Connection error during handleAddFriend:", e);
+    }
   };
 
   const handleRemoveFriend = async (friendId: string, e: React.MouseEvent) => {
@@ -162,13 +194,13 @@ export default function HomePage() {
             Quietly
           </Link>
           <div className="flex items-center gap-4">
-             <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-                <div className="w-2 h-2 rounded-full bg-[#D4FF3F] animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">System Online</span>
-             </div>
-             <Avatar className="h-8 w-8 border border-[#D4FF3F]/50 shadow-[0_0_10px_rgba(212,255,63,0.2)]">
-                <AvatarFallback className="bg-zinc-900 text-[#D4FF3F] text-xs font-bold">{getInitials(user.firstName)}</AvatarFallback>
-             </Avatar>
+            <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+              <div className="w-2 h-2 rounded-full bg-[#D4FF3F] animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Encrypted</span>
+            </div>
+            <Avatar className="h-8 w-8 border border-[#D4FF3F]/50 shadow-[0_0_10px_rgba(212,255,63,0.2)]">
+              <AvatarFallback className="bg-zinc-900 text-[#D4FF3F] text-xs font-bold">{getInitials(user.firstName)}</AvatarFallback>
+            </Avatar>
           </div>
         </div>
       </nav>
@@ -185,30 +217,27 @@ export default function HomePage() {
             </Button>
           </nav>
 
-          <section className="flex-1 overflow-hidden flex flex-col">
-            <h3 className="mb-3 px-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Inner Circle</h3>
-            <ScrollArea className="flex-1">
-              <div className="space-y-1 pr-4">
-                {innerCircle.length === 0 && <p className="px-2 text-[10px] italic text-muted-foreground opacity-50">Circle empty.</p>}
-                {innerCircle.map((f) => (
-                  <div key={f.id} onClick={() => setSelectedFriend(f)} className={`group flex items-center justify-between rounded-xl p-2 cursor-pointer transition-all ${selectedFriend?.id === f.id ? 'bg-secondary border border-white/5' : 'hover:bg-secondary/50'}`}>
-                    <div className="flex items-center gap-3 truncate">
-                      <Avatar className="h-8 w-8 border border-white/10 shrink-0"><AvatarFallback className="bg-zinc-800 text-xs font-bold">{f.alias[0]}</AvatarFallback></Avatar>
-                      <span className="text-sm font-bold truncate">{f.alias}</span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => handleRemoveFriend(f.id, e)}
-                      className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-500 transition-all rounded-lg"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
+          <section>
+            <h3 className="mb-3 px-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Inner Circle</h3>
+            <div className="space-y-1">
+              {innerCircle.length === 0 && <p className="px-2 text-[10px] italic text-muted-foreground">Your circle is empty.</p>}
+              {innerCircle.map((f) => (
+                <div
+                  key={f.id}
+                  onClick={() => setSelectedFriend(f)}
+                  className={`flex items-center gap-3 rounded-xl p-2 cursor-pointer transition-all ${selectedFriend?.id === f.id ? 'bg-secondary' : 'hover:bg-secondary/50'}`}
+                >
+                  <Avatar className={`h-8 w-8 border border-white/10 ${f.color || 'bg-zinc-800'}`}>
+                    <AvatarFallback className="text-[10px] font-bold">
+                      {getInitials(getDisplayName(f))}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-bold">{getDisplayName(f)}</span>
+                </div>
+              ))}
+            </div>
           </section>
+
 
           {tempFriends.length > 0 && (
             <section className="mt-4">
@@ -251,7 +280,10 @@ export default function HomePage() {
                   </div>
                   {(chatHistories[selectedFriend.id] || []).map((msg) => (
                     <div key={msg.id} className={`flex ${msg.sender === "me" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-1 duration-300`}>
-                      <div className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm ${msg.sender === "me" ? "bg-[#D4FF3F] text-black font-semibold rounded-tr-none" : "bg-zinc-800 text-white border border-white/10 rounded-tl-none"}`}>
+                      <div className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm ${msg.sender === "me"
+                        ? "bg-[#D4FF3F] text-black font-semibold rounded-tr-none shadow-[0_5px_15px_rgba(212,255,63,0.15)]"
+                        : "bg-zinc-800 text-white border border-white/10 rounded-tl-none"
+                        }`}>
                         <p className="leading-relaxed">{msg.text}</p>
                         <p className={`text-[8px] mt-2 font-black uppercase opacity-40 ${msg.sender === "me" ? "text-black" : "text-white"}`}>{msg.timestamp}</p>
                       </div>
