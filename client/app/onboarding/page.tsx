@@ -15,24 +15,23 @@ const INTEREST_TAGS = [
 
 const QUESTIONS = [
   { 
-    id: "intro", 
-    question: "Hi there! I'm your AI companion. I'll help you find friends who match your energy. Ready to start?", 
-    type: "text" 
-  },
-  { 
     id: "interests", 
-    question: "What are some of your favorite hobbies? Pick as many as you like!", 
+    question: "Hi there! I'm your AI companion. Let's find your circle. What are some of your favorite hobbies? Pick as many as you like!", 
     type: "tags" 
   },
   { 
     id: "dislikes", 
-    question: "To find the right circle, tell me: what's a major social dealbreaker for you?", 
-    options: ["Crowded/Loud spaces", "Small talk", "Unplanned hangouts", "Lack of personal space"], 
-    type: "options" 
+    question: "To find the right energy match, tell me: what is a major social dealbreaker or something you usually avoid in a friendship?", 
+    type: "text" 
+  },
+  { 
+    id: "about", 
+    question: "Tell me a little bit about yourself! What makes you, you?", 
+    type: "text" 
   },
   { 
     id: "vibe", 
-    question: "Describe your ideal 'quiet' hangout vibe.", 
+    question: "Finally, describe your ideal 'quiet' hangout vibe.", 
     type: "text" 
   },
 ];
@@ -44,11 +43,13 @@ export default function ChatOnboarding() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   
+  // To store final data for database
+  const [onboardingData, setOnboardingData] = useState<any>({});
+  
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasInitialized = useRef(false);
   const router = useRouter();
 
-  // FIX: Use ref to prevent double-prompting in React Strict Mode
   useEffect(() => {
     if (!hasInitialized.current) {
       askQuestion(0);
@@ -56,7 +57,6 @@ export default function ChatOnboarding() {
     }
   }, []);
 
-  // Auto-scroll to bottom whenever messages change
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
@@ -72,54 +72,22 @@ export default function ChatOnboarding() {
     }, 1200);
   };
 
-  const handleSend = (overrideValue?: string) => {
-    const currentQuestionType = QUESTIONS[currentStep].type;
-    const finalValue = overrideValue || (currentQuestionType === "tags" ? selectedTags.join(", ") : inputValue);
+  const handleSend = () => {
+    const currentQuestion = QUESTIONS[currentStep];
+    const finalValue = currentQuestion.type === "tags" ? selectedTags.join(", ") : inputValue;
 
-    // Validation
-    if (currentQuestionType === "tags" && selectedTags.length === 0) return;
-    if (currentQuestionType === "text" && !finalValue.trim()) return;
+    if (currentQuestion.type === "tags" && selectedTags.length === 0) return;
+    if (currentQuestion.type === "text" && !finalValue.trim()) return;
 
-    // --- LOGIC FOR INTRO STEP ---
-    if (currentStep === 0) {
-      const lowerText = finalValue.toLowerCase().trim();
-      const negatives = ["no", "nope", "not ready", "stop", "cancel", "nah"];
-      const positives = ["yes", "yeah", "yep", "sure", "ready", "ok", "go"];
-      
-      const isNegative = negatives.some(word => lowerText.includes(word));
-      const isPositive = positives.some(word => lowerText.includes(word));
+    // Save data to state
+    setOnboardingData((prev: any) => ({
+        ...prev,
+        [currentQuestion.id]: finalValue
+    }));
 
-      setMessages((prev) => [...prev, { role: "user", text: finalValue }]);
-      setInputValue("");
+    setMessages((prev) => [...prev, { role: "user", text: finalValue }]);
+    setInputValue("");
 
-      if (isNegative) {
-        setIsTyping(true);
-        setTimeout(() => {
-          setIsTyping(false);
-          setMessages((prev) => [...prev, { role: "ai", text: "No problem. I'll be here if you change your mind! Redirecting..." }]);
-          setTimeout(() => router.push("/"), 2000);
-        }, 1000);
-        return; 
-      }
-
-      if (!isPositive) {
-        setIsTyping(true);
-        setTimeout(() => {
-          setIsTyping(false);
-          setMessages((prev) => [...prev, { 
-            role: "ai", 
-            text: "I'm sorry, I didn't catch that. Are you ready to begin? (Yes/No)" 
-          }]);
-        }, 800);
-        return;
-      }
-    } else {
-      // Normal flow
-      setMessages((prev) => [...prev, { role: "user", text: finalValue }]);
-      setInputValue("");
-    }
-
-    // Move Forward
     if (currentStep < QUESTIONS.length - 1) {
       const nextStep = currentStep + 1;
       setCurrentStep(nextStep);
@@ -141,26 +109,29 @@ export default function ChatOnboarding() {
       setIsTyping(false);
       setMessages((prev) => [...prev, { 
         role: "ai", 
-        text: "Got it. Knowing what to avoid is just as important as knowing what you love. Analyzing your matches now..." 
+        text: "I've got a great sense of your vibe now. Searching the Montreal cloud for matches that respect your space... Redirecting to your home feed." 
       }]);
-      setTimeout(() => router.push("/matches"), 2500);
+      
+      // Update local session with new onboarding data if needed
+      const session = JSON.parse(localStorage.getItem("user_session") || "{}");
+      localStorage.setItem("user_session", JSON.stringify({ ...session, ...onboardingData }));
+
+      setTimeout(() => router.push("/home"), 2500);
     }, 1500);
   };
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
-      {/* Header */}
       <header className="p-4 border-b border-border bg-card/50 backdrop-blur-md flex items-center gap-3 sticky top-0 z-10">
         <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
           <Bot className="text-primary-foreground w-6 h-6" />
         </div>
         <div>
-          <h2 className="font-bold text-sm tracking-tight">Quietly AI</h2>
-          <p className="text-[10px] text-muted-foreground uppercase font-semibold">Onboarding Session</p>
+          <h2 className="font-bold text-sm tracking-tight text-primary">Quietly AI</h2>
+          <p className="text-[10px] text-muted-foreground uppercase font-semibold">Discovery Mode</p>
         </div>
       </header>
 
-      {/* Chat Area */}
       <ScrollArea className="flex-1 px-4 py-6 md:px-8">
         <div className="max-w-2xl mx-auto space-y-6 pb-12">
           {messages.map((msg, i) => (
@@ -178,7 +149,6 @@ export default function ChatOnboarding() {
             </div>
           ))}
 
-          {/* Special Input: Tags */}
           {!isTyping && QUESTIONS[currentStep].type === "tags" && messages.length > 0 && messages[messages.length-1].role === "ai" && (
             <div className="flex flex-wrap gap-2 p-4 bg-secondary/10 rounded-2xl border border-dashed border-border animate-in zoom-in-95">
               {INTEREST_TAGS.map((tag) => (
@@ -198,7 +168,7 @@ export default function ChatOnboarding() {
               <Button 
                 size="sm" 
                 className="w-full mt-2 rounded-xl" 
-                onClick={() => handleSend()}
+                onClick={handleSend}
                 disabled={selectedTags.length === 0}
               >
                 Confirm Interests <ArrowRight className="ml-2 w-4 h-4" />
@@ -206,23 +176,6 @@ export default function ChatOnboarding() {
             </div>
           )}
 
-          {/* Special Input: Options */}
-          {!isTyping && QUESTIONS[currentStep].type === "options" && messages.length > 0 && messages[messages.length-1].role === "ai" && (
-            <div className="grid grid-cols-1 gap-2 animate-in slide-in-from-left-4">
-              {QUESTIONS[currentStep].options?.map((opt) => (
-                <Button 
-                  key={opt} 
-                  variant="outline" 
-                  className="justify-start h-12 rounded-xl border-border hover:bg-primary/5 hover:border-primary active:scale-[0.98] transition-all"
-                  onClick={() => handleSend(opt)}
-                >
-                  {opt}
-                </Button>
-              ))}
-            </div>
-          )}
-
-          {/* Typing Indicator */}
           {isTyping && (
             <div className="flex justify-start">
               <div className="bg-card border border-border px-4 py-3 rounded-2xl rounded-tl-none flex gap-1 items-center shadow-sm">
@@ -236,11 +189,10 @@ export default function ChatOnboarding() {
         </div>
       </ScrollArea>
 
-      {/* Footer / Input */}
       <footer className="p-4 md:p-6 border-t border-border bg-background/80 backdrop-blur-md">
         <div className="max-w-2xl mx-auto flex gap-3">
           <Input 
-            placeholder={QUESTIONS[currentStep].type === "tags" ? "Pick your favorites above..." : "Type your message..."}
+            placeholder={QUESTIONS[currentStep].type === "tags" ? "Select your interests above..." : "Type your answer..."}
             value={inputValue}
             disabled={QUESTIONS[currentStep].type === "tags" || isTyping}
             onChange={(e) => setInputValue(e.target.value)}
@@ -248,7 +200,7 @@ export default function ChatOnboarding() {
             className="rounded-full bg-secondary border-none h-12 px-6 focus-visible:ring-2 focus-visible:ring-primary/20 transition-all"
           />
           <Button 
-            onClick={() => handleSend()} 
+            onClick={handleSend} 
             disabled={(QUESTIONS[currentStep].type === "tags" ? selectedTags.length === 0 : !inputValue.trim()) || isTyping}
             className="h-12 w-12 rounded-full shrink-0 shadow-lg active:scale-95 transition-transform"
           >
