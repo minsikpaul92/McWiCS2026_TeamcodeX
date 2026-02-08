@@ -38,8 +38,16 @@
 - [x] Integrate Q1-Q3 initial user data into AI context
 - [x] Final Profile Generation based on full conversation history
 
-#### **Phase 8: MongoDB Integration**
-- [ ] Setup MongoDB connection utility (`backend/database.py`)
-- [ ] Create CRUD operations for User Profile (Save/Update)
-- [ ] Create Session management logic (Save/Fetch Chat History)
-- [ ] Connect Database to API Routers (Dependency Injection)
+#### Phase 8: Structured Onboarding & AI Handoff
+- [x] **[Frontend] Sequential Start**: Remove "Ready?" check. Immediately start with "What do you like?".
+- [x] **[Frontend] 3-Step Fixed Questions**:
+    1.  **Turn 1 (Likes)**: Show Interests tags. Save selections/text to DB.
+    2.  **Turn 2 (Dislikes)**: Show Dealbreaker tags (Cilantro, Spicy food, etc.). Save selections/text to DB.
+    3.  **Turn 3 (Self-Intro)**: Ask "Tell me about yourself?". Save text to DB.
+- [x] **[Frontend] Hybrid Input**: Allow both tag selection and chat typing for Likes/Dislikes.
+- [x] **[Frontend] Dynamic AI Buttons**: Render AI-generated options as clickable buttons.
+- [x] **[Backend] AI Handoff Router**:
+    - Update `POST /onboarding/chat` to trigger AI Engine only *after* the 3rd turn.
+    - Combine User Profile (Signup) + 3-step Answers into a single AI context.
+- [x] **[Backend] AI Engine Adjustment**: Ensure Gemini starts follow-ups based on the detailed 3-step context from Turn 4.
+- [x] **[Verification]**: Test full flow (3 Static Turns -> dynamic Gemini Response).
