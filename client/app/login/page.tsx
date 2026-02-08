@@ -35,6 +35,7 @@ export default function LoginPage() {
         console.log("Match confirmed! Redirecting...");
 
         // Save user session so the Home page knows who you are
+        localStorage.setItem("user_db_id", data.user.id);
         localStorage.setItem("user_session", JSON.stringify(data.user));
 
         // TAKE USER TO HOME PAGE

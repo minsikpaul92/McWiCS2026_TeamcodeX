@@ -41,11 +41,22 @@ export default function MatchesPage() {
   };
 
   useEffect(() => {
-    const dbId = localStorage.getItem("user_db_id");
-    const session = localStorage.getItem("user_session");
+    let dbId = localStorage.getItem("user_db_id");
+    const sessionStr = localStorage.getItem("user_session");
 
     // Route Guard
-    if (!session || !dbId) {
+    if (!sessionStr) {
+      router.push("/login");
+      return;
+    }
+
+    const session = JSON.parse(sessionStr);
+    if (!dbId && session.id) {
+      dbId = session.id;
+      localStorage.setItem("user_db_id", dbId);
+    }
+
+    if (!dbId) {
       router.push("/login");
       return;
     }

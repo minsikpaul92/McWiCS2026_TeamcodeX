@@ -22,7 +22,8 @@ async def login(user: UserLogin):
             "user": {
                 "id": str(db_user["_id"]),
                 "firstName": db_user.get("firstName", "Explorer"),
-                "email": db_user.get("email")
+                "email": db_user.get("email"),
+                "inner_circle": db_user.get("inner_circle", [])
             }
         }
         
