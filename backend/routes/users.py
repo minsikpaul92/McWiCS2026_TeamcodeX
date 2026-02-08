@@ -14,10 +14,11 @@ async def signup(user_data: dict = Body(...)):
         
         # Hash the password before saving
         if "password" in user_data:
-            print(f"DEBUG: Hashing password for {user_data.get('email')}. Length: {len(str(pw))}")
+            pw = user_data["password"]
+            print(f"DEBUG: Hashing password for {user_data.get('email')}.")
             try:
                 hashed_pw = get_password_hash(pw)
-                print(f"DEBUG: Password hashed successfully. Hash length: {len(hashed_pw)}")
+                print(f"DEBUG: Password hashed successfully.")
                 user_data["password"] = hashed_pw
             except Exception as e:
                 print(f"DEBUG: Hashing failed: {e}")
