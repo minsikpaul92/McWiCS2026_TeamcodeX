@@ -1,66 +1,41 @@
-import json
-from engine.matcher import calculate_match_score
+def calculate_match_score(user_a, user_b):
+    score = 0
+    reasons = []
 
-def test_matching():
-    # paul's analyzed profile (from previous result)
-    paul = {
-        "user_profile": {
-            "summary": "Paul is a computer programmer in Toronto...",
-            "tags": {
-                "likes": ["computer programming", "gaming", "quiet environments", "staying home"],
-                "dislikes": ["loud parties", "spicy food"]
-            }
-        },
-        "matching_attributes": {
-            "energy_level": 2,
-            "social_style": "Quiet",
-            "must_avoid": ["loud parties", "spicy food"]
-        }
-    }
+    attr_a = user_a.get("matching_attributes", {})
+    attr_b = user_b.get("matching_attributes", {})
+    tags_a = user_a.get("user_profile", {}).get("tags", {})
+    tags_b = user_b.get("user_profile", {}).get("tags", {})
 
-    # a potential match: "Sarah" (Simulated profile)
-    sarah = {
-        "user_profile": {
-            "summary": "Sarah loves books and painting in cafes.",
-            "tags": {
-                "likes": ["reading", "painting", "quiet environments", "coding"],
-                "dislikes": ["noisy places"]
-            }
-        },
-        "matching_attributes": {
-            "energy_level": 3,
-            "social_style": "Quiet",
-            "must_avoid": ["noisy environments"]
-        }
-    }
+    # 1. HARD FILTER: Must Avoids (The Dealbreakers)
+    # Check if A's likes are in B's avoids, or vice versa
+    for dislike in attr_a.get("must_avoid", []):
+        if any(like in dislike.lower() for like in tags_b.get("likes", [])):
+            score -= 50
+            reasons.append(f"Conflict: Item in {user_b.get('alias', 'Match')}'s lifestyle is a dealbreaker for {user_a.get('alias', 'User')}.")
 
-    # a bad match: "Party Lover" (Simulated profile)
-    party_person = {
-        "user_profile": {
-            "summary": "I love clubbing and spicy food!",
-            "tags": {
-                "likes": ["loud parties", "spicy food", "dancing"],
-                "dislikes": ["silence"]
-            }
-        },
-        "matching_attributes": {
-            "energy_level": 9,
-            "social_style": "Direct",
-            "must_avoid": ["boring people"]
-        }
-    }
+    # 2. SOFT MATCH: Social Style (Weight: 30%)
+    if attr_a.get("social_style") == attr_b.get("social_style"):
+        score += 30
+        reasons.append(f"Both share a {attr_a.get('social_style')} social style.")
 
-    print("--- Matching Test Starting ---")
-    
-    # Test 1: Paul & Sarah (Good Match)
-    score1, reasons1 = calculate_match_score(paul, sarah)
-    print(f"\nMatch 1 (Paul & Sarah): Score = {score1}%")
-    for r in reasons1: print(f" - {r}")
+    # 3. SOFT MATCH: Energy Level (Weight: 30%)
+    # Max difference of 10. We want a small delta.
+    energy_delta = abs(attr_a.get("energy_level", 0) - attr_b.get("energy_level", 0))
+    if energy_delta <= 2:
+        score += 30
+        reasons.append("Highly compatible energy levels.")
+    elif energy_delta <= 4:
+        score += 15
+        reasons.append("Moderately compatible energy levels.")
 
-    # Test 2: Paul & Party Lover (Bad Match - Hard Filtered)
-    score2, reasons2 = calculate_match_score(paul, party_person)
-    print(f"\nMatch 2 (Paul & Party Lover): Score = {score2}%")
-    for r in reasons2: print(f" - {r}")
+    # 4. SOFT MATCH: Shared Interests (Weight: 40%)
+    common_likes = set(tags_a.get("likes", [])) & set(tags_b.get("likes", []))
+    if common_likes:
+        interest_score = min(len(common_likes) * 15, 40)
+        score += interest_score
+        reasons.append(f"Shared interests: {', '.join(list(common_likes)[:3])}")
 
-if __name__ == "__main__":
-    test_matching()
+    # Final Score Normalization (0-100)
+    final_score = max(0, min(score, 100))
+    return final_score, reasons
