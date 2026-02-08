@@ -12,6 +12,7 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://172.21.80.1:3000",
+        "https://mc-wi-cs-2026-teamcode-9kltmmx0v-minsikpaul92s-projects.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],

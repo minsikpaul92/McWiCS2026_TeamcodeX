@@ -26,14 +26,14 @@ const getBackendUrl = (): string => {
     // Check for environment variable first (best for production/multi-device)
     const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
     if (envUrl) return envUrl;
-    
+
     // QUICK FIX: Replace 'localhost' with your server IP for multi-device testing
     // Example: return "http://192.168.1.100:8000";
-    
-    // Default to localhost for single-device development
-    return "http://localhost:8000";
+
+    // Default to Vercel production for single-device development
+    return "https://mc-wi-cs-2026-teamcode-9kltmmx0v-minsikpaul92s-projects.vercel.app";
   }
-  return "http://localhost:8000";
+  return "https://mc-wi-cs-2026-teamcode-9kltmmx0v-minsikpaul92s-projects.vercel.app";
 };
 
 export const BACKEND_URL = getBackendUrl();
