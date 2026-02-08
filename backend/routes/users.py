@@ -35,8 +35,6 @@ async def add_friend(db_id: str, friend: dict = Body(..., embed=True)):
                 friend["firstName"] = real_first
                 friend["lastName"] = real_last
                 
-                # Remove "Anonymous" artifacts slightly if needed, but keeping ID/Bio is fine
-        
         # 2. Update the user document by pushing the REVEALED friend to inner_circle
         result = users_collection.update_one(
             {"_id": ObjectId(db_id)},
@@ -49,4 +47,20 @@ async def add_friend(db_id: str, friend: dict = Body(..., embed=True)):
         return {"status": "success", "message": "Friend added and identity revealed", "friend": friend}
     except Exception as e:
         print(f"Add Friend Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{db_id}/remove-friend")
+async def remove_friend(db_id: str, friend_id: str = Body(..., embed=True)):
+    try:
+        result = users_collection.update_one(
+            {"_id": ObjectId(db_id)},
+            {"$pull": {"inner_circle": {"id": friend_id}}}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        return {"status": "success", "message": "Friend removed from inner circle"}
+    except Exception as e:
+        print(f"Remove Friend Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
