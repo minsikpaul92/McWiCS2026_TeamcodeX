@@ -22,8 +22,11 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Calling your FastAPI backend /auth prefix
-      const response = await fetch(`${BACKEND_URL}/auth/login`, {
+      // EMERGENCY HARDCODE: Force the correct URL
+      const targetUrl = "https://mc-wi-cs-2026-teamcode-x.vercel.app/auth/login";
+      console.log("Attempting Login to:", targetUrl);
+
+      const response = await fetch(targetUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
