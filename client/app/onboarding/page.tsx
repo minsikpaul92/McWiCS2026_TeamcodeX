@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Bot, Check, Plus, ArrowRight } from "lucide-react";
+import { BACKEND_URL } from "@/lib/api";
 
 const INTEREST_TAGS = [
   "Reading", "Gaming", "Solo Hikes", "Lo-fi Music", "Cooking",
@@ -43,7 +44,7 @@ const DISCOVERY_QUESTION = {
   type: "text"
 };
 
-export default function ChatOnboarding() {
+function OnboardingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isDiscoveryMode = searchParams.get("mode") === "discovery";
@@ -64,7 +65,7 @@ export default function ChatOnboarding() {
     const dbId = localStorage.getItem("user_db_id");
     if (!dbId) return;
     try {
-      await fetch(`http://localhost:8000/chat/save/${dbId}`, {
+      await fetch(`${BACKEND_URL}/chat/save/${dbId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role, text, timestamp: new Date().toISOString() }),
@@ -83,7 +84,7 @@ export default function ChatOnboarding() {
 
     if (!hasInitialized.current) {
       const name = localStorage.getItem("user_first_name") || "there";
-      
+
       if (isDiscoveryMode) {
         // --- START DISCOVERY MODE ---
         setCurrentStep(99); // 99 = Discovery Phase
@@ -140,7 +141,7 @@ export default function ChatOnboarding() {
 
     if (isDiscovery) {
       // Transition from discovery question to AI interview
-      setCurrentStep(QUESTIONS.length); 
+      setCurrentStep(QUESTIONS.length);
       fetchNextAIQuestion(finalValue);
     } else if (currentStep < QUESTIONS.length) {
       const nextStep = currentStep + 1;
@@ -166,12 +167,12 @@ export default function ChatOnboarding() {
     };
 
     try {
-      await fetch(`http://localhost:8000/onboarding/start/${dbId}`, {
+      await fetch(`${BACKEND_URL}/onboarding/start/${dbId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(initialData),
       });
-      fetchNextAIQuestion(""); 
+      fetchNextAIQuestion("");
     } catch (e) {
       console.error("AI Interview Error", e);
     }
@@ -185,7 +186,7 @@ export default function ChatOnboarding() {
     setIsTyping(true);
     const dbId = localStorage.getItem("user_db_id");
     try {
-      const response = await fetch(`http://localhost:8000/onboarding/chat/${dbId}`, {
+      const response = await fetch(`${BACKEND_URL}/onboarding/chat/${dbId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_answer: userAnswer }),
@@ -203,7 +204,7 @@ export default function ChatOnboarding() {
     setIsAnalyzing(true);
     const dbId = localStorage.getItem("user_db_id");
     try {
-      await fetch(`http://localhost:8000/onboarding/complete/${dbId}`, { method: "POST" });
+      await fetch(`${BACKEND_URL}/onboarding/complete/${dbId}`, { method: "POST" });
       setTimeout(() => router.push("/matches"), 3000);
     } catch (e) {
       setIsAnalyzing(false);
@@ -230,9 +231,8 @@ export default function ChatOnboarding() {
         <div className="max-w-2xl mx-auto space-y-6 pb-12">
           {messages.map((msg, i) => (
             <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-              <div className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed ${
-                msg.role === "user" ? "bg-primary text-primary-foreground rounded-tr-none shadow-md" : "bg-card border border-border text-foreground rounded-tl-none"
-              }`}>
+              <div className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed ${msg.role === "user" ? "bg-primary text-primary-foreground rounded-tr-none shadow-md" : "bg-card border border-border text-foreground rounded-tl-none"
+                }`}>
                 {msg.text}
               </div>
             </div>
@@ -244,9 +244,8 @@ export default function ChatOnboarding() {
                 <button
                   key={tag}
                   onClick={() => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
-                    selectedTags.includes(tag) ? "bg-primary text-primary-foreground scale-105" : "bg-background border border-border text-muted-foreground"
-                  }`}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${selectedTags.includes(tag) ? "bg-primary text-primary-foreground scale-105" : "bg-background border border-border text-muted-foreground"
+                    }`}
                 >
                   {selectedTags.includes(tag) ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
                   {tag}
@@ -311,5 +310,17 @@ export default function ChatOnboarding() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ChatOnboarding() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col items-center justify-center h-screen bg-background">
+        <Bot className="text-primary w-12 h-12 animate-pulse" />
+      </div>
+    }>
+      <OnboardingContent />
+    </Suspense>
   );
 }

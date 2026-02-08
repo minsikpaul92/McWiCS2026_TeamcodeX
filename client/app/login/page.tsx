@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation"; // For navigation
 import { Button } from "@/components/ui/button";
+import { BACKEND_URL } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter(); // Initialize the router
@@ -22,13 +23,21 @@ export default function LoginPage() {
 
     try {
       // Calling your FastAPI backend /auth prefix
-      const response = await fetch("http://localhost:8000/auth/login", {
+      const response = await fetch(`${BACKEND_URL}/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password: password
+        }),
       });
 
+      console.log("Response received. Status:", response.status);
       const data = await response.json();
+      console.log("Response data:", data);
 
       if (response.ok) {
         /* --- SUCCESS: MATCH FOUND IN DATABASE --- */

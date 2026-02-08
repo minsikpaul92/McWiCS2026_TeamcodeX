@@ -5,7 +5,7 @@ from core.database import users_collection
 
 app = FastAPI(title="IntroConnect API")
 
-# 1. CORS Configuration (include 127.0.0.1 and network IP for dev)
+# 1. CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -13,6 +13,7 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://172.21.80.1:3000",
     ],
+    allow_origin_regex=r"https://.*\.vercel\.app", # Broadly allow any Vercel subdomains
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
