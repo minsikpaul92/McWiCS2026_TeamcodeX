@@ -64,7 +64,8 @@ export default function SignUpPage() {
         console.log("Success:", result.message);
         // Save the database ID so onboarding can use it for chat history
         localStorage.setItem("user_db_id", result.db_id);
-        console.log("✅ Saved user_db_id to localStorage:", result.db_id);
+        localStorage.setItem("user_first_name", formData.firstName);
+        console.log("✅ Saved user_db_id and first name to localStorage");
         // Clean up the local storage draft since it's now safe in the cloud
         localStorage.removeItem("user_signup_draft");
         router.push("/onboarding");

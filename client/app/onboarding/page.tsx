@@ -13,26 +13,28 @@ const INTEREST_TAGS = [
   "Yoga", "Photography", "Writing", "Puzzles", "Stargazing"
 ];
 
+const DISLIKE_TAGS = [
+  "Cilantro", "Spicy food", "Soggy texture", "Seafood", "Mint chocolate",
+  "Olives", "Greasy food", "Pickiness", "Rudeness", "Arrogance",
+  "Small talk", "Lying", "Tardiness", "Judgmental people", "Attention seeking",
+  "Crowded places", "Loud noises", "Humid weather", "Bright lights", "Strong perfumes",
+  "Procrastination", "Commuting", "Waking up early", "Insects", "Waiting in line"
+];
+
 const QUESTIONS = [
   {
-    id: "intro",
-    question: "Hi there! I'm your AI companion. I'll help you find friends who match your energy. Ready to start?",
-    type: "text"
-  },
-  {
     id: "interests",
-    question: "What are some of your favorite hobbies? Pick as many as you like!",
+    question: "Hey {name}! So glad you're here. 🌟 To help you find your people, let's start with what you love doing! What are some of your favorite hobbies? Pick from the tags or just type them in!",
     type: "tags"
   },
   {
     id: "dislikes",
-    question: "To find the right circle, tell me: what's a major social dealbreaker for you?",
-    options: ["Crowded/Loud spaces", "Small talk", "Unplanned hangouts", "Lack of personal space"],
-    type: "options"
+    question: "Got it! Honestly, we all have those things that just don't vibe with us. 😅 What are your social dealbreakers or things you're not a fan of? Feel free to pick or type them.",
+    type: "tags"
   },
   {
     id: "vibe",
-    question: "Describe your ideal 'quiet' hangout vibe.",
+    question: "Love it! Lastly, I'd love to get to know you a bit better. How would you describe your personality or your ideal hangout vibe? Just speak from the heart!",
     type: "text"
   },
 ];
@@ -42,13 +44,14 @@ export default function ChatOnboarding() {
   const [messages, setMessages] = useState<{ role: "ai" | "user"; text: string }[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [aiOptions, setAiOptions] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasInitialized = useRef(false);
   const router = useRouter();
 
-  // --- DATABASE SYNC LOGIC ---
   // --- DATABASE SYNC LOGIC ---
   const syncMessageWithDb = async (role: "ai" | "user", text: string) => {
     const dbId = localStorage.getItem("user_db_id");
@@ -59,8 +62,6 @@ export default function ChatOnboarding() {
     }
 
     try {
-      // UPDATE THIS URL BELOW 
-      // Changed from /save-chat/ to /chat/save/
       const response = await fetch(`http://localhost:8000/chat/save/${dbId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -93,20 +94,36 @@ export default function ChatOnboarding() {
 
   const askQuestion = (stepIndex: number) => {
     setIsTyping(true);
+    const userName = localStorage.getItem("user_first_name") || "there";
+
     setTimeout(() => {
       setIsTyping(false);
       const q = QUESTIONS[stepIndex];
-      setMessages((prev) => [...prev, { role: "ai", text: q.question }]);
+      const personalizedQuestion = q.question.replace("{name}", userName);
+
+      setMessages((prev) => [...prev, { role: "ai", text: personalizedQuestion }]);
 
       // Save AI question to DB
-      syncMessageWithDb("ai", q.question);
+      syncMessageWithDb("ai", personalizedQuestion);
     }, 1200);
   };
 
   const handleSend = async (overrideValue?: string) => {
     const isInitialQuestions = currentStep < QUESTIONS.length;
     const currentQuestionType = isInitialQuestions ? QUESTIONS[currentStep].type : "text";
-    const finalValue = overrideValue || (currentQuestionType === "tags" ? selectedTags.join(", ") : inputValue);
+
+    // Combine Tags + Typed Text
+    let finalValue = overrideValue || "";
+    if (!overrideValue) {
+      const tagsString = selectedTags.join(", ");
+      const typedText = inputValue.trim();
+
+      if (tagsString && typedText) {
+        finalValue = `${tagsString}, ${typedText}`;
+      } else {
+        finalValue = tagsString || typedText;
+      }
+    }
 
     if (currentQuestionType === "tags" && selectedTags.length === 0) return;
     if (currentQuestionType === "text" && !finalValue.trim()) return;
@@ -116,18 +133,9 @@ export default function ChatOnboarding() {
     await syncMessageWithDb("user", finalValue);
     setInputValue("");
     setSelectedTags([]); // Reset for next turn
+    setAiOptions([]); // Clear AI options
 
     if (isInitialQuestions) {
-      if (currentStep === 0) {
-        // Handle "Ready to start?" (Logic from teammate)
-        const lowerText = finalValue.toLowerCase().trim();
-        const positives = ["yes", "yeah", "yep", "sure", "ready", "ok", "go"];
-        if (!positives.some(word => lowerText.includes(word))) {
-          // (Simplified retry logic for space)
-          return;
-        }
-      }
-
       const nextStep = currentStep + 1;
       if (nextStep < QUESTIONS.length) {
         setCurrentStep(nextStep);
@@ -147,11 +155,11 @@ export default function ChatOnboarding() {
     setIsTyping(true);
     const dbId = localStorage.getItem("user_db_id");
 
-    // Extract initial data from messages
+    // Extract initial data from messages (Indices based on Turn 1-3 sequence)
     const initialData = {
-      intro: messages[1]?.text || "", // Just an example mapping
-      likes: messages[3]?.text?.split(", ") || [],
-      dislikes: messages[5]?.text || "",
+      likes: messages[1]?.text?.split(", ") || [],
+      dislikes: messages[3]?.text?.split(", ") || [],
+      intro: messages[5]?.text || "",
     };
 
     try {
@@ -171,6 +179,12 @@ export default function ChatOnboarding() {
     const dbId = localStorage.getItem("user_db_id");
 
     try {
+      // Handle completion only if user explicitly says "No" via button
+      if (userAnswer === "No, I'm all set!") {
+        finishOnboarding();
+        return;
+      }
+
       const response = await fetch(`http://localhost:8000/onboarding/chat/${dbId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -180,13 +194,9 @@ export default function ChatOnboarding() {
       const data = await response.json();
       setIsTyping(false);
 
-      // Update UI with AI's dynamic response
+      // Update UI with AI's dynamic response and options
       setMessages((prev) => [...prev, { role: "ai", text: data.next_question }]);
-
-      // Handle completion
-      if (data.should_end) {
-        finishOnboarding();
-      }
+      setAiOptions(data.options || []);
     } catch (e) {
       console.error("AI Chat Error", e);
       setIsTyping(false);
@@ -200,7 +210,7 @@ export default function ChatOnboarding() {
   };
 
   const finishOnboarding = async () => {
-    setIsTyping(true);
+    setIsAnalyzing(true);
     const dbId = localStorage.getItem("user_db_id");
 
     try {
@@ -209,13 +219,13 @@ export default function ChatOnboarding() {
       });
       const data = await resp.json();
 
-      setIsTyping(false);
-      setMessages((prev) => [...prev, { role: "ai", text: "Got it! I've analyzed your profile and found some great matches for you." }]);
-
-      setTimeout(() => router.push("/matches"), 3000);
+      // Shortened to 3 seconds as requested
+      setTimeout(() => {
+        router.push("/matches");
+      }, 3000);
     } catch (e) {
       console.error("Completion error", e);
-      setIsTyping(false);
+      setIsAnalyzing(false);
     }
   };
 
@@ -244,7 +254,7 @@ export default function ChatOnboarding() {
 
           {!isTyping && currentStep < QUESTIONS.length && QUESTIONS[currentStep].type === "tags" && messages.length > 0 && messages[messages.length - 1].role === "ai" && (
             <div className="flex flex-wrap gap-2 p-4 bg-secondary/10 rounded-2xl border border-dashed border-border animate-in zoom-in-95">
-              {INTEREST_TAGS.map((tag) => (
+              {(QUESTIONS[currentStep].id === "interests" ? INTEREST_TAGS : DISLIKE_TAGS).map((tag) => (
                 <button
                   key={tag}
                   onClick={() => toggleTag(tag)}
@@ -256,17 +266,22 @@ export default function ChatOnboarding() {
                 </button>
               ))}
               <Button size="sm" className="w-full mt-2 rounded-xl" onClick={() => handleSend()} disabled={selectedTags.length === 0}>
-                Confirm Interests <ArrowRight className="ml-2 w-4 h-4" />
+                Confirm Selection <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
             </div>
           )}
 
-          {!isTyping && currentStep < QUESTIONS.length && QUESTIONS[currentStep].type === "options" && messages.length > 0 && messages[messages.length - 1].role === "ai" && (
-            <div className="grid grid-cols-1 gap-2 animate-in slide-in-from-left-4">
-              {QUESTIONS[currentStep].options?.map((opt) => (
-                <Button key={opt} variant="outline" className="justify-start h-12 rounded-xl border-border hover:bg-primary/5 hover:border-primary transition-all" onClick={() => handleSend(opt)}>
+          {!isTyping && aiOptions.length > 0 && messages[messages.length - 1].role === "ai" && (
+            <div className="flex flex-wrap gap-2 p-4 bg-secondary/10 rounded-2xl border border-dashed border-border animate-in zoom-in-95">
+              {aiOptions.map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => handleSend(opt)}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 bg-background border border-border hover:border-primary/50 text-muted-foreground"
+                >
+                  <Plus className="w-3 h-3" />
                   {opt}
-                </Button>
+                </button>
               ))}
             </div>
           )}
@@ -287,22 +302,48 @@ export default function ChatOnboarding() {
       <footer className="p-4 md:p-6 border-t border-border bg-background/80 backdrop-blur-md">
         <div className="max-w-2xl mx-auto flex gap-3">
           <Input
-            placeholder={QUESTIONS[currentStep].type === "tags" ? "Pick your favorites above..." : "Type your message..."}
+            placeholder={(currentStep < QUESTIONS.length && QUESTIONS[currentStep].type === "tags") ? "Pick from above or type here..." : "Type your message..."}
             value={inputValue}
-            disabled={QUESTIONS[currentStep].type === "tags" || isTyping}
+            disabled={isTyping}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             className="rounded-full bg-secondary border-none h-12 px-6 focus-visible:ring-2 focus-visible:ring-primary/20 transition-all"
           />
           <Button
             onClick={() => handleSend()}
-            disabled={(QUESTIONS[currentStep].type === "tags" ? selectedTags.length === 0 : !inputValue.trim()) || isTyping}
+            disabled={((currentStep < QUESTIONS.length && QUESTIONS[currentStep].type === "tags") ? (selectedTags.length === 0 && !inputValue.trim()) : !inputValue.trim()) || isTyping}
             className="h-12 w-12 rounded-full shrink-0 shadow-lg active:scale-95 transition-transform"
           >
             <Send className="w-5 h-5" />
           </Button>
         </div>
       </footer>
+
+      {isAnalyzing && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/90 backdrop-blur-xl animate-in fade-in duration-700">
+          <div className="relative w-32 h-32 mb-8">
+            <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+            <div className="absolute inset-0 rounded-full border-4 border-t-primary animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Bot className="w-12 h-12 text-primary animate-pulse" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold font-space-grotesk tracking-tight text-center px-6">
+            Connecting your kindred spirits...
+          </h2>
+          <p className="text-muted-foreground mt-2 text-sm text-center">Connecty is hand-picking your best matches.</p>
+
+          <div className="mt-12 flex gap-1">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="w-2 h-2 bg-primary rounded-full animate-bounce"
+                style={{ animationDelay: `${i * 0.2}s` }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

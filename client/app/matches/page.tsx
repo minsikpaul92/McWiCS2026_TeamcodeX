@@ -18,14 +18,23 @@ export default function MatchesPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Replace with your Python backend URL (e.g., http://localhost:8000/api/matches)
-    fetch("http://localhost:8000/api/matches")
+    const dbId = localStorage.getItem("user_db_id");
+    if (!dbId) {
+      setLoading(false);
+      return;
+    }
+
+    fetch(`http://localhost:8000/matching/list/${dbId}`)
       .then((res) => res.json())
       .then((data) => {
-        setMatches(data)
-        setLoading(false)
+        setMatches(Array.isArray(data) ? data : []);
+        setLoading(false);
       })
-      .catch((err) => console.error("Error fetching matches:", err))
+      .catch((err) => {
+        console.error("Error fetching matches:", err);
+        setMatches([]);
+        setLoading(false);
+      });
   }, [])
 
   if (loading) return (
@@ -53,10 +62,10 @@ export default function MatchesPage() {
                   {match.match_score}% Match
                 </span>
               </div>
-              
+
               <h3 className="text-xl font-bold mb-1">{match.name}</h3>
               <p className="text-sm text-muted-foreground mb-4">{match.bio}</p>
-              
+
               <div className="flex flex-wrap gap-2 mb-6">
                 {match.interests.map(interest => (
                   <span key={interest} className="text-[10px] uppercase tracking-wider border border-border px-2 py-1 rounded">
