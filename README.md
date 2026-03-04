@@ -107,9 +107,9 @@ McWiCS2026/
 
 ## 🧑‍💻 Development Team
 
-* **Minsik (Paul) Son** (Lead Developer)
+* **Minsik (Paul) Kim** (Lead Developer)
 * **Arunraj Elanchezhian**
-* *(Add other team members here)*
+* **Khai Ngo**
 
 ---
 
