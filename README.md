@@ -1,4 +1,4 @@
-# 🤝 IntroConnect
+# 🤝 Quietly
 ### AI-Powered Friendship Platform for Introverts
 **Developed for Hack McWiCS 2026**
 
@@ -6,7 +6,7 @@
 
 ## 📌 Overview
 
-**IntroConnect** is an AI-powered friendship matching platform designed especially for introverts who want to build meaningful connections in a safe, comfortable, and pressure-free environment. 
+**Quietly** is an AI-powered friendship matching platform designed especially for introverts who want to build meaningful connections in a safe, comfortable, and pressure-free environment. 
 
 The platform uses an **AI Dynamic Interviewer** to understand your personality and connects you with "Kindred Spirits" through a privacy-first journey involving anonymous trials and mutual reveals.
 
